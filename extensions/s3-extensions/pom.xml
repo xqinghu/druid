@@ -62,6 +62,10 @@
             <artifactId>httpcore</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.metamx</groupId>
+            <artifactId>emitter</artifactId>
+        </dependency>
+        <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
         </dependency>
