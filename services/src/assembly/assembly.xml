@@ -107,7 +107,9 @@
       <dependencySet>
         <useProjectArtifact>true</useProjectArtifact>
         <useTransitiveDependencies>true</useTransitiveDependencies>
+        <useTransitiveFiltering>true</useTransitiveFiltering>
         <outputDirectory>lib</outputDirectory>
+        <excludes><exclude>io.druid.extensions:*</exclude></excludes>
       </dependencySet>
     </dependencySets>
     <repositories>
