@@ -54,71 +54,8 @@
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>airline</artifactId>
-          </dependency>
-
-        <dependency>
-          <groupId>io.druid.extensions</groupId>
-          <artifactId>druid-namespace-lookup</artifactId>
-          <version>${project.parent.version}</version>
         </dependency>
 
-        <dependency>
-          <groupId>io.druid.extensions</groupId>
-          <artifactId>druid-cassandra-storage</artifactId>
-          <version>${project.parent.version}</version>
-        </dependency>
-
-        <dependency>
-          <groupId>io.druid.extensions</groupId>
-          <artifactId>druid-kafka-eight</artifactId>
-          <version>${project.parent.version}</version>
-        </dependency>
-
-        <dependency>
-          <groupId>io.druid.extensions</groupId>
-          <artifactId>druid-azure-extensions</artifactId>
-          <version>${project.parent.version}</version>
-        </dependency>
-
-        <dependency>
-          <groupId>io.druid.extensions</groupId>
-          <artifactId>mysql-metadata-storage</artifactId>
-          <version>${project.parent.version}</version>
-        </dependency>
-
-        <dependency>
-          <groupId>io.druid.extensions</groupId>
-          <artifactId>druid-hdfs-storage</artifactId>
-          <version>${project.parent.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>io.druid.extensions</groupId>
-          <artifactId>postgresql-metadata-storage</artifactId>
-          <version>${project.parent.version}</version>
-        </dependency>
-
-        <dependency>
-          <groupId>io.druid.extensions</groupId>
-          <artifactId>druid-kafka-extraction-namespace</artifactId>
-          <version>${project.parent.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>io.druid.extensions</groupId>
-          <artifactId>druid-rabbitmq</artifactId>
-          <version>${project.parent.version}</version>
-        </dependency>
-
-        <dependency>
-          <groupId>io.druid.extensions</groupId>
-          <artifactId>druid-s3-extensions</artifactId>
-          <version>${project.parent.version}</version>
-        </dependency>
-        
-        <dependency>
-          <groupId>io.druid.extensions</groupId>
-          <artifactId>druid-histogram</artifactId>
-          <version>${project.parent.version}</version>
-        </dependency>
         <!-- Test Dependencies -->
         <dependency>
             <groupId>junit</groupId>
@@ -139,15 +76,9 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                          <outputFile>
-                            ${project.build.directory}/${project.artifactId}-${project.version}-selfcontained.jar
-                          </outputFile>
-                          <artifactSet>
-                            <excludes>
-                              <exclude>io.druid.extensions:*</exclude>
-                            </excludes>
-                          </artifactSet>
-
+                            <outputFile>
+                                ${project.build.directory}/${project.artifactId}-${project.version}-selfcontained.jar
+                            </outputFile>
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>
@@ -159,40 +90,10 @@
                                 </filter>
                             </filters>
                             <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                                <transformer
+                                    implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
                         </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>distro-assembly</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                        <configuration>
-                            <finalName>${project.parent.artifactId}-${project.parent.version}</finalName>
-                            <descriptors>
-                                <descriptor>src/assembly/assembly.xml</descriptor>
-                            </descriptors>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>license-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>download-licenses</id>
-                        <goals>
-                            <goal>download-licenses</goal>
-                        </goals>
                     </execution>
                 </executions>
             </plugin>
