@@ -104,10 +104,27 @@
         </fileSet>
     </fileSets>
     <dependencySets>
-        <dependencySet>
-            <useProjectArtifact>true</useProjectArtifact>
-            <useTransitiveDependencies>true</useTransitiveDependencies>
-            <outputDirectory>lib</outputDirectory>
-        </dependencySet>
+      <dependencySet>
+        <useProjectArtifact>true</useProjectArtifact>
+        <useTransitiveDependencies>true</useTransitiveDependencies>
+        <outputDirectory>lib</outputDirectory>
+      </dependencySet>
     </dependencySets>
-</assembly>
+    <repositories>
+      <repository>
+        <includeMetadata>true</includeMetadata>
+        <outputDirectory>extensions-repo</outputDirectory>
+        <includes><include>io.druid.extensions:*</include></includes>
+      </repository>
+    </repositories>
+    <!-- <moduleSets> -->
+    <!--     <moduleSet> -->
+    <!--     <useAllReactorProjects>true</useAllReactorProjects> -->
+    <!--     <includes><include>io.druid.extensions:*</include></includes> -->
+    <!--     <excludes><exclude>io.druid.extensions:druid&#45;namespace&#45;lookup*</exclude></excludes> -->
+    <!--     <binaries> -->
+    <!--       <outputDirectory>extensions/${module.artifactId}</outputDirectory> -->
+    <!--     </binaries> -->
+    <!--   </moduleSet> -->
+    <!-- </moduleSets> -->
+  </assembly>
