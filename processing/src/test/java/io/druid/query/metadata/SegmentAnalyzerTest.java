@@ -32,9 +32,10 @@ import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.TestIndex;
 import io.druid.segment.column.ValueType;
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,11 +44,21 @@ import java.util.Map;
  */
 public class SegmentAnalyzerTest
 {
+  private static final EnumSet<SegmentMetadataQuery.AnalysisType> emptyAnalyses =
+      EnumSet.noneOf(SegmentMetadataQuery.AnalysisType.class);
+
   @Test
   public void testIncrementalWorks() throws Exception
   {
+    testIncrementalWorksHelper(null);
+    testIncrementalWorksHelper(emptyAnalyses);
+  }
+
+  private void testIncrementalWorksHelper(EnumSet<SegmentMetadataQuery.AnalysisType> analyses) throws Exception
+  {
     final List<SegmentAnalysis> results = getSegmentAnalysises(
-        new IncrementalIndexSegment(TestIndex.getIncrementalTestIndex(false), null)
+        new IncrementalIndexSegment(TestIndex.getIncrementalTestIndex(false), null),
+        analyses
     );
 
     Assert.assertEquals(1, results.size());
@@ -61,19 +72,28 @@ public class SegmentAnalyzerTest
         TestIndex.COLUMNS.length,
         columns.size()
     ); // All columns including time and empty/null column
-    
+
     for (String dimension : TestIndex.DIMENSIONS) {
       final ColumnAnalysis columnAnalysis = columns.get(dimension);
 
       Assert.assertEquals(dimension, ValueType.STRING.name(), columnAnalysis.getType());
-      Assert.assertTrue(dimension, columnAnalysis.getCardinality() > 0);
+      if (analyses == null) {
+        Assert.assertTrue(dimension, columnAnalysis.getCardinality() > 0);
+      } else {
+        Assert.assertEquals(dimension, 0, columnAnalysis.getCardinality().longValue());
+        Assert.assertEquals(dimension, 0, columnAnalysis.getSize());
+      }
     }
 
     for (String metric : TestIndex.METRICS) {
       final ColumnAnalysis columnAnalysis = columns.get(metric);
 
       Assert.assertEquals(metric, ValueType.FLOAT.name(), columnAnalysis.getType());
-      Assert.assertTrue(metric, columnAnalysis.getSize() > 0);
+      if (analyses == null) {
+        Assert.assertTrue(metric, columnAnalysis.getSize() > 0);
+      } else {
+        Assert.assertEquals(metric, 0, columnAnalysis.getSize());
+      }
       Assert.assertNull(metric, columnAnalysis.getCardinality());
     }
   }
@@ -81,8 +101,15 @@ public class SegmentAnalyzerTest
   @Test
   public void testMappedWorks() throws Exception
   {
+    testMappedWorksHelper(null);
+    testMappedWorksHelper(emptyAnalyses);
+  }
+
+  private void testMappedWorksHelper(EnumSet<SegmentMetadataQuery.AnalysisType> analyses) throws Exception
+  {
     final List<SegmentAnalysis> results = getSegmentAnalysises(
-        new QueryableIndexSegment("test_1", TestIndex.getMMappedTestIndex())
+        new QueryableIndexSegment("test_1", TestIndex.getMMappedTestIndex()),
+        analyses
     );
 
     Assert.assertEquals(1, results.size());
@@ -102,8 +129,13 @@ public class SegmentAnalyzerTest
         Assert.assertNull(columnAnalysis);
       } else {
         Assert.assertEquals(dimension, ValueType.STRING.name(), columnAnalysis.getType());
-        Assert.assertTrue(dimension, columnAnalysis.getSize() > 0);
-        Assert.assertTrue(dimension, columnAnalysis.getCardinality() > 0);
+        if (analyses == null) {
+          Assert.assertTrue(dimension, columnAnalysis.getSize() > 0);
+          Assert.assertTrue(dimension, columnAnalysis.getCardinality() > 0);
+        } else {
+          Assert.assertEquals(dimension, 0, columnAnalysis.getCardinality().longValue());
+          Assert.assertEquals(dimension, 0, columnAnalysis.getSize());
+        }
       }
     }
 
@@ -111,7 +143,11 @@ public class SegmentAnalyzerTest
       final ColumnAnalysis columnAnalysis = columns.get(metric);
 
       Assert.assertEquals(metric, ValueType.FLOAT.name(), columnAnalysis.getType());
-      Assert.assertTrue(metric, columnAnalysis.getSize() > 0);
+      if (analyses == null) {
+        Assert.assertTrue(metric, columnAnalysis.getSize() > 0);
+      } else {
+        Assert.assertEquals(metric, 0, columnAnalysis.getSize());
+      }
       Assert.assertNull(metric, columnAnalysis.getCardinality());
     }
   }
@@ -123,7 +159,7 @@ public class SegmentAnalyzerTest
    *
    * @return
    */
-  private List<SegmentAnalysis> getSegmentAnalysises(Segment index)
+  private List<SegmentAnalysis> getSegmentAnalysises(Segment index, EnumSet<SegmentMetadataQuery.AnalysisType> analyses)
   {
     final QueryRunner runner = QueryRunnerTestHelper.makeQueryRunner(
         (QueryRunnerFactory) new SegmentMetadataQueryRunnerFactory(
@@ -133,7 +169,7 @@ public class SegmentAnalyzerTest
     );
 
     final SegmentMetadataQuery query = new SegmentMetadataQuery(
-        new LegacyDataSource("test"), QuerySegmentSpecs.create("2011/2012"), null, null, null, false
+        new LegacyDataSource("test"), QuerySegmentSpecs.create("2011/2012"), null, null, null, analyses, false
     );
     HashMap<String, Object> context = new HashMap<String, Object>();
     return Sequences.toList(query.run(runner, context), Lists.<SegmentAnalysis>newArrayList());
