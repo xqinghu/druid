@@ -322,7 +322,7 @@ public class HadoopConverterJobTest
           @Override
           public boolean run()
           {
-            connector.createSegmentTable(connector.getDBI(), "druid_segments");
+            connector.createSegmentTable("druid_segments");
             return true;
           }
         },
