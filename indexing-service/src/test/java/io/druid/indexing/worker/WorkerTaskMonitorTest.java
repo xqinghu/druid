@@ -123,13 +123,14 @@ public class WorkerTaskMonitorTest
 
   private WorkerTaskMonitor createTaskMonitor()
   {
+    final TaskConfig taskConfig = new TaskConfig(Files.createTempDir().toString(), null, null, 0, null, null, null);
     return new WorkerTaskMonitor(
         jsonMapper,
         cf,
         workerCuratorCoordinator,
         new ThreadPoolTaskRunner(
             new TaskToolboxFactory(
-                new TaskConfig(Files.createTempDir().toString(), null, null, 0, null),
+                taskConfig,
                 null, null, null, null, null, null, null, null, null, null, null, new SegmentLoaderFactory(
                 new SegmentLoaderLocalCacheManager(
                     null,
@@ -145,7 +146,7 @@ public class WorkerTaskMonitorTest
                 )
             ), jsonMapper
             ),
-            null
+            taskConfig
         ),
         new WorkerConfig().setCapacity(1)
     );

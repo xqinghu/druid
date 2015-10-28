@@ -395,12 +395,13 @@ public class TaskLifecycleTest
   }
 
   private void setUpAndStartTaskQueue(DataSegmentPusher dataSegmentPusher) {
+    final TaskConfig taskConfig = new TaskConfig(tmpDir.toString(), null, null, 50000, null, null, null);
     tsqa = new TaskStorageQueryAdapter(ts);
     tl = new TaskLockbox(ts);
     mdc = newMockMDC();
     tac = new LocalTaskActionClientFactory(ts, new TaskActionToolbox(tl, mdc, newMockEmitter()));
     tb = new TaskToolboxFactory(
-        new TaskConfig(tmpDir.toString(), null, null, 50000, null),
+        taskConfig,
         tac,
         newMockEmitter(),
         dataSegmentPusher,
@@ -473,7 +474,7 @@ public class TaskLifecycleTest
         ),
         new DefaultObjectMapper()
     );
-    tr = new ThreadPoolTaskRunner(tb, null);
+    tr = new ThreadPoolTaskRunner(tb, taskConfig);
     tq = new TaskQueue(tqc, ts, tr, tac, tl, emitter);
     tq.start();
   }

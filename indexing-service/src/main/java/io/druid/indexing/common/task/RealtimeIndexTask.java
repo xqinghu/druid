@@ -62,6 +62,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class RealtimeIndexTask extends AbstractTask
 {
@@ -103,6 +105,12 @@ public class RealtimeIndexTask extends AbstractTask
 
   @JsonIgnore
   private volatile Plumber plumber = null;
+
+  @JsonIgnore
+  private volatile Firehose firehose = null;
+
+  @JsonIgnore
+  private volatile boolean stopped = false;
 
   @JsonIgnore
   private volatile QueryRunnerFactoryConglomerate queryRunnerFactoryConglomerate = null;
@@ -280,8 +288,6 @@ public class RealtimeIndexTask extends AbstractTask
 
     this.plumber = plumberSchool.findPlumber(dataSchema, tuningConfig, fireDepartment.getMetrics());
 
-    // Delay firehose connection to avoid claiming input resources while the plumber is starting up.
-    Firehose firehose = null;
     Supplier<Committer> committerSupplier = null;
 
     try {
@@ -290,7 +296,7 @@ public class RealtimeIndexTask extends AbstractTask
       // Set up metrics emission
       toolbox.getMonitorScheduler().addMonitor(metricsMonitor);
 
-      // Set up firehose
+      // Delay firehose connection to avoid claiming input resources while the plumber is starting up.
       firehose = spec.getIOConfig().getFirehoseFactory().connect(spec.getDataSchema().getParser());
       committerSupplier = Committers.supplierFromFirehose(firehose);
 
@@ -332,8 +338,34 @@ public class RealtimeIndexTask extends AbstractTask
     finally {
       if (normalExit) {
         try {
-          plumber.persist(committerSupplier.get());
-          plumber.finishJob();
+          if (!stopped) {
+            // Hand off all pending data
+            log.info("Persisting and handing off pending data.");
+            plumber.persist(committerSupplier.get());
+            plumber.finishJob();
+          } else {
+            log.info("Persisting pending data without handoff, in preparation for restart.");
+            final Committer committer = committerSupplier.get();
+            final CountDownLatch persistLatch = new CountDownLatch(1);
+            plumber.persist(
+                new Committer()
+                {
+                  @Override
+                  public Object getMetadata()
+                  {
+                    return committer.getMetadata();
+                  }
+
+                  @Override
+                  public void run()
+                  {
+                    persistLatch.countDown();
+                    committer.run();
+                  }
+                }
+            );
+            persistLatch.await();
+          }
         }
         catch (Exception e) {
           log.makeAlert(e, "Failed to finish realtime task").emit();
@@ -347,7 +379,32 @@ public class RealtimeIndexTask extends AbstractTask
       }
     }
 
+    log.info("Job done!");
     return TaskStatus.success(getId());
+  }
+
+  @Override
+  public boolean canRestore()
+  {
+    return true;
+  }
+
+  @Override
+  public void stopGracefully()
+  {
+    try {
+      synchronized (this) {
+        if (!stopped) {
+          stopped = true;
+          if (firehose != null) {
+            firehose.close();
+          }
+        }
+      }
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
   }
 
   @JsonProperty("spec")
