@@ -1034,6 +1034,7 @@ public class RealtimePlumber implements Plumber
         if (config.isPersistInHeap()) {
           persistedFile = IndexMaker.persist(
               indexToPersist.getIndex(),
+              interval,
               new File(computePersistDir(schema, interval), String.valueOf(indexToPersist.getCount())),
               metaData,
               indexSpec
@@ -1041,6 +1042,7 @@ public class RealtimePlumber implements Plumber
         } else {
           persistedFile = IndexMerger.persist(
               indexToPersist.getIndex(),
+              interval,
               new File(computePersistDir(schema, interval), String.valueOf(indexToPersist.getCount())),
               metaData,
               indexSpec
