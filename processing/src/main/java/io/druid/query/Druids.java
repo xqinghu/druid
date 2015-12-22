@@ -50,6 +50,8 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 
@@ -74,9 +76,9 @@ public class Druids
 
   /**
    * A Builder for AndDimFilter.
-   *
+   * <p/>
    * Required: fields() must be called before build()
-   *
+   * <p/>
    * Usage example:
    * <pre><code>
    *   AndDimFilter andDimFilter = Druids.newAndDimFilterBuilder()
@@ -120,9 +122,9 @@ public class Druids
 
   /**
    * A Builder for OrDimFilter.
-   *
+   * <p/>
    * Required: fields() must be called before build()
-   *
+   * <p/>
    * Usage example:
    * <pre><code>
    *   OrDimFilter orDimFilter = Druids.newOrDimFilterBuilder()
@@ -175,9 +177,9 @@ public class Druids
 
   /**
    * A Builder for NotDimFilter.
-   *
+   * <p/>
    * Required: field() must be called before build()
-   *
+   * <p/>
    * Usage example:
    * <pre><code>
    *   NotDimFilter notDimFilter = Druids.newNotDimFilterBuilder()
@@ -221,9 +223,9 @@ public class Druids
 
   /**
    * A Builder for SelectorDimFilter.
-   *
+   * <p/>
    * Required: dimension() and value() must be called before build()
-   *
+   * <p/>
    * Usage example:
    * <pre><code>
    *   Selector selDimFilter = Druids.newSelectorDimFilterBuilder()
@@ -300,10 +302,10 @@ public class Druids
 
   /**
    * A Builder for TimeseriesQuery.
-   *
+   * <p/>
    * Required: dataSource(), intervals(), and aggregators() must be called before build()
    * Optional: filters(), granularity(), postAggregators(), and context() can be called before build()
-   *
+   * <p/>
    * Usage example:
    * <pre><code>
    *   TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
@@ -498,11 +500,11 @@ public class Druids
 
   /**
    * A Builder for SearchQuery.
-   *
+   * <p/>
    * Required: dataSource(), intervals(), dimensions() and query() must be called before build()
-   *
+   * <p/>
    * Optional: filters(), granularity(), and context() can be called before build()
-   *
+   * <p/>
    * Usage example:
    * <pre><code>
    *   SearchQuery query = Druids.newSearchQueryBuilder()
@@ -705,9 +707,9 @@ public class Druids
 
   /**
    * A Builder for TimeBoundaryQuery.
-   *
+   * <p/>
    * Required: dataSource() must be called before build()
-   *
+   * <p/>
    * Usage example:
    * <pre><code>
    *   TimeBoundaryQuery query = new MaxTimeQueryBuilder()
@@ -801,9 +803,9 @@ public class Druids
 
   /**
    * A Builder for Result.
-   *
+   * <p/>
    * Required: timestamp() and value() must be called before build()
-   *
+   * <p/>
    * Usage example:
    * <pre><code>
    *   Result&lt;T&gt; result = Druids.newResultBuilder()
@@ -867,9 +869,9 @@ public class Druids
 
   /**
    * A Builder for SegmentMetadataQuery.
-   *
+   * <p/>
    * Required: dataSource(), intervals() must be called before build()
-   *
+   * <p/>
    * Usage example:
    * <pre><code>
    *   SegmentMetadataQuery query = new SegmentMetadataQueryBuilder()
@@ -885,6 +887,7 @@ public class Druids
     private DataSource dataSource;
     private QuerySegmentSpec querySegmentSpec;
     private ColumnIncluderator toInclude;
+    private EnumSet<SegmentMetadataQuery.AnalysisType> analysisTypes;
     private Boolean merge;
     private Map<String, Object> context;
 
@@ -893,6 +896,7 @@ public class Druids
       dataSource = null;
       querySegmentSpec = null;
       toInclude = null;
+      analysisTypes = null;
       merge = null;
       context = null;
     }
@@ -905,17 +909,22 @@ public class Druids
           toInclude,
           merge,
           context,
-          null,
+          analysisTypes,
           false
       );
     }
 
     public SegmentMetadataQueryBuilder copy(SegmentMetadataQueryBuilder builder)
     {
+      final SegmentMetadataQuery.AnalysisType[] analysisTypesArray =
+          analysisTypes != null
+          ? analysisTypes.toArray(new SegmentMetadataQuery.AnalysisType[analysisTypes.size()])
+          : null;
       return new SegmentMetadataQueryBuilder()
           .dataSource(builder.dataSource)
           .intervals(builder.querySegmentSpec)
           .toInclude(toInclude)
+          .analysisTypes(analysisTypesArray)
           .merge(merge)
           .context(builder.context);
     }
@@ -956,6 +965,17 @@ public class Druids
       return this;
     }
 
+    public SegmentMetadataQueryBuilder analysisTypes(SegmentMetadataQuery.AnalysisType... analysisTypes)
+    {
+      if (analysisTypes == null) {
+        this.analysisTypes = null;
+      } else {
+        this.analysisTypes = analysisTypes.length == 0
+                             ? EnumSet.noneOf(SegmentMetadataQuery.AnalysisType.class)
+                             : EnumSet.copyOf(Arrays.asList(analysisTypes));
+      }
+      return this;
+    }
 
     public SegmentMetadataQueryBuilder merge(boolean merge)
     {
@@ -977,9 +997,9 @@ public class Druids
 
   /**
    * A Builder for SelectQuery.
-   *
+   * <p/>
    * Required: dataSource(), intervals() must be called before build()
-   *
+   * <p/>
    * Usage example:
    * <pre><code>
    *   SelectQuery query = new SelectQueryBuilder()
@@ -1131,9 +1151,9 @@ public class Druids
 
   /**
    * A Builder for DataSourceMetadataQuery.
-   *
+   * <p/>
    * Required: dataSource() must be called before build()
-   *
+   * <p/>
    * Usage example:
    * <pre><code>
    *   DataSourceMetadataQueryBuilder query = new DataSourceMetadataQueryBuilder()

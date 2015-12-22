@@ -27,7 +27,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import com.metamx.common.ISE;
+import com.metamx.common.guava.MappedSequence;
 import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.nary.BinaryFn;
@@ -36,8 +36,8 @@ import io.druid.collections.OrderedMergeSequence;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.utils.JodaUtils;
 import io.druid.query.CacheStrategy;
-import io.druid.query.Query;
 import io.druid.query.DruidMetrics;
+import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ResultMergeQueryRunner;
@@ -62,6 +62,20 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
   {
   };
   private static final byte[] SEGMENT_METADATA_CACHE_PREFIX = new byte[]{0x4};
+  private static final Function<SegmentAnalysis, SegmentAnalysis> MERGE_TRANSFORM_FN = new Function<SegmentAnalysis, SegmentAnalysis>()
+  {
+    @Override
+    public SegmentAnalysis apply(SegmentAnalysis analysis)
+    {
+      return new SegmentAnalysis(
+          analysis.getId(),
+          analysis.getIntervals() != null ? JodaUtils.condenseIntervals(analysis.getIntervals()) : null,
+          analysis.getColumns(),
+          analysis.getSize(),
+          analysis.getNumRows()
+      );
+    }
+  };
 
   private final SegmentMetadataQueryConfig config;
 
@@ -78,21 +92,6 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
   {
     return new ResultMergeQueryRunner<SegmentAnalysis>(runner)
     {
-      private Function<SegmentAnalysis, SegmentAnalysis> transformFn = new Function<SegmentAnalysis, SegmentAnalysis>()
-      {
-        @Override
-        public SegmentAnalysis apply(SegmentAnalysis analysis)
-        {
-          return new SegmentAnalysis(
-              analysis.getId(),
-              JodaUtils.condenseIntervals(analysis.getIntervals()),
-              analysis.getColumns(),
-              analysis.getSize(),
-              analysis.getNumRows()
-          );
-        }
-      };
-
       @Override
       public Sequence<SegmentAnalysis> doRun(
           QueryRunner<SegmentAnalysis> baseRunner,
@@ -100,11 +99,13 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
           Map<String, Object> context
       )
       {
-        return CombiningSequence.create(
-            baseRunner.run(query, context),
-            makeOrdering(query),
-            createMergeFn(query),
-            transformFn
+        return new MappedSequence<>(
+            CombiningSequence.create(
+                baseRunner.run(query, context),
+                makeOrdering(query),
+                createMergeFn(query)
+            ),
+            MERGE_TRANSFORM_FN
         );
       }
 
