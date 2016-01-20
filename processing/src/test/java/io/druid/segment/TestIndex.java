@@ -31,14 +31,12 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.data.input.impl.TimestampSpec;
 import io.druid.granularity.QueryGranularity;
-import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesSerde;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
-import io.druid.segment.incremental.OffheapIncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
@@ -73,7 +71,7 @@ public class TestIndex
       "placementish",
       "partial_null_column",
       "null_column",
-  };
+      };
   public static final String[] METRICS = new String[]{"index"};
   private static final Logger log = new Logger(TestIndex.class);
   private static final Interval DATA_INTERVAL = new Interval("2011-01-12T00:00:00.000Z/2011-05-01T00:00:00.000Z");
@@ -93,7 +91,7 @@ public class TestIndex
   private static QueryableIndex mmappedIndex = null;
   private static QueryableIndex mergedRealtime = null;
 
-  public static IncrementalIndex getIncrementalTestIndex(boolean useOffheap)
+  public static IncrementalIndex getIncrementalTestIndex()
   {
     synchronized (log) {
       if (realtimeIndex != null) {
@@ -101,7 +99,7 @@ public class TestIndex
       }
     }
 
-    return realtimeIndex = makeRealtimeIndex("druid.sample.tsv", useOffheap);
+    return realtimeIndex = makeRealtimeIndex("druid.sample.tsv");
   }
 
   public static QueryableIndex getMMappedTestIndex()
@@ -112,7 +110,7 @@ public class TestIndex
       }
     }
 
-    IncrementalIndex incrementalIndex = getIncrementalTestIndex(false);
+    IncrementalIndex incrementalIndex = getIncrementalTestIndex();
     mmappedIndex = persistRealtimeAndLoadMMapped(incrementalIndex);
 
     return mmappedIndex;
@@ -126,8 +124,8 @@ public class TestIndex
       }
 
       try {
-        IncrementalIndex top = makeRealtimeIndex("druid.sample.tsv.top", false);
-        IncrementalIndex bottom = makeRealtimeIndex("druid.sample.tsv.bottom", false);
+        IncrementalIndex top = makeRealtimeIndex("druid.sample.tsv.top");
+        IncrementalIndex bottom = makeRealtimeIndex("druid.sample.tsv.bottom");
 
         File tmpFile = File.createTempFile("yay", "who");
         tmpFile.delete();
@@ -163,7 +161,7 @@ public class TestIndex
     }
   }
 
-  private static IncrementalIndex makeRealtimeIndex(final String resourceFilename, final boolean useOffheap)
+  private static IncrementalIndex makeRealtimeIndex(final String resourceFilename)
   {
     final URL resource = TestIndex.class.getClassLoader().getResource(resourceFilename);
     log.info("Realtime loading index file[%s]", resource);
@@ -172,20 +170,10 @@ public class TestIndex
         .withQueryGranularity(QueryGranularity.NONE)
         .withMetrics(METRIC_AGGS)
         .build();
-    final IncrementalIndex retVal;
-    if (useOffheap) {
-      retVal = new OffheapIncrementalIndex(
-          schema,
-          TestQueryRunners.pool,
-          true,
-          100 * 1024 * 1024
-      );
-    } else {
-      retVal = new OnheapIncrementalIndex(
-          schema,
-          10000
-      );
-    }
+    final IncrementalIndex retVal = new OnheapIncrementalIndex(
+        schema,
+        10000
+    );
 
     final AtomicLong startTime = new AtomicLong();
     int lineCount;

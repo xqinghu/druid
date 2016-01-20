@@ -68,6 +68,7 @@ public class SegmentMetadataQueryQueryToolChestTest
             "placement",
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
+                true,
                 10881,
                 1,
                 null
