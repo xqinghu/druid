@@ -114,9 +114,14 @@ your functionality as a native Java aggregator.
 The javascript aggregator is recommended for rapidly prototyping features. This aggregator will be much slower in production 
 use than a native Java aggregator.
 
+## Approximate Aggregations
+
 ### Cardinality aggregator
 
-Computes the cardinality of a set of Druid dimensions, using HyperLogLog to estimate the cardinality.
+Computes the cardinality of a set of Druid dimensions, using HyperLogLog to estimate the cardinality. Please note that this 
+aggregator will be much slower than indexing a column with the hyperUnique aggregator. This aggregator also runs over a dimension column, which 
+means the string dimension cannot be removed from the dataset to improve rollup. In general, we strongly recommend using the hyperUnique aggregator 
+instead of the cardinality aggregator if you do not care about the individual values of a dimension.
 
 ```json
 {
@@ -180,10 +185,6 @@ Determine the number of distinct people (i.e. combinations of first and last nam
   "byRow" : true
 }
 ```
-
-## Approximate Aggregations
-
-Druid supports complex aggregations such as various types of approximate sketches. 
 
 ### HyperUnique aggregator
 
