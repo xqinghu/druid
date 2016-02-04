@@ -2,7 +2,7 @@
 layout: doc_page
 ---
 
-## Load your own streaming data
+# Tutorial: Load your own streaming data
 
 ## Getting started
 

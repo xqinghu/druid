@@ -65,8 +65,9 @@ With Zookeeper running, return to the druid-0.9.0 directory. In that directory, 
 bin/init
 ```
 
-Next, you can start up the Druid processes in different terminal windows. This tutorial runs every Druid process on the same system. In production, 
-many of these Druid processes can be colocated even in a distributed cluster.
+This will setup up some directories for you. Next, you can start up the Druid processes in different terminal windows. 
+This tutorial runs every Druid process on the same system. In a large distributed production cluster, 
+many of these Druid processes can still be co-located together.
 
 ```bash
 java `cat conf-quickstart/druid/historical/jvm.config | xargs` -cp conf-quickstart/druid/_common:conf-quickstart/druid/historical:lib/* io.druid.cli.Main server historical
@@ -113,7 +114,7 @@ filter and split on) in the Wikipedia dataset, other than time, are:
   * regionName
   * user
 
-The [measures](https://en.wikipedia.org/wiki/Measure_%28data_warehouse%29), or *metrics* as they are known in Druid (values you can aggregate)  
+The [measures](https://en.wikipedia.org/wiki/Measure_%28data_warehouse%29), or *metrics* as they are known in Druid (values you can aggregate) 
 in the Wikipedia dataset are:
 
   * count
