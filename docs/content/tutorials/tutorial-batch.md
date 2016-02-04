@@ -96,7 +96,7 @@ Finally, fire off the task and indexing will proceed!
 curl -X 'POST' -H 'Content-Type:application/json' -d @quickstart/pageviews-index.json localhost:8090/druid/indexer/v1/task
 ```
 
-If anything goes wrong with this task (e.g. it finishes with status FAILED), you can troubleshoot  
+If anything goes wrong with this task (e.g. it finishes with status FAILED), you can troubleshoot 
 by visiting the "Task log" on the [overlord console](http://localhost:8090/console.html).
 
 <div class="note-info">

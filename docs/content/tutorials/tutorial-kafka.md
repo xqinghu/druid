@@ -14,8 +14,8 @@ don't need to have loaded any data yet.
 
 <div class="note-info">
 This tutorial will show you how to load data from Kafka into Druid, but Druid additionally supports
-a wide variety of batch and streaming loading methods. See the *[Loading files](../ingestion/batch-ingestion.html)* 
-and *[Loading streams](../ingestion/stream-ingestion.html)* pages for more information about other options, 
+a wide variety of batch and streaming loading methods. See the <a href="../ingestion/batch-ingestion.html">Loading files</a> 
+and <a href="../ingestion/stream-ingestion.html">Loading streams</a> pages for more information about other options, 
 including from Hadoop, HTTP, Storm, Samza, Spark Streaming, and your own JVM apps.
 </div>
 

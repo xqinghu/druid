@@ -10,7 +10,7 @@ streams to Druid in real-time. Druid does not come bundled with Tranquility, and
 
 <div class="note-info">
 If you've never loaded streaming data into Druid, we recommend trying out the
-[stream loading tutorial](../tutorials/tutorial-streams.html) first and then coming back to this page.
+<a href="../tutorials/tutorial-streams.html">stream loading tutorial</a> first and then coming back to this page.
 </div>
 
 Note that with all streaming ingestion options, you must ensure that incoming data is recent 

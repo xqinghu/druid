@@ -88,8 +88,8 @@ Once every service has started, you are now ready to load data.
 We've included a sample of Wikipedia edits from September 12, 2015 to get you started.
 
 <div class="note-info">
-This section shows you how to load data in batches, but you can skip ahead to learn how to [load 
-streams in real-time](quickstart.html#load-streaming-data). Druid's streaming ingestion can load data 
+This section shows you how to load data in batches, but you can skip ahead to learn how to <a href="quickstart.html#load-streaming-data">load 
+streams in real-time</a>. Druid's streaming ingestion can load data 
 with virtually no delay between events occurring and being available for queries.
 </div>
 
@@ -173,7 +173,7 @@ bin/tranquility server -configFile <path_to_druid_distro>/conf-quickstart/tranqu
 
 <div class="note-info">
 This section shows you how to load data using Tranquility Server, but Druid also supports a wide
-variety of [other streaming ingestion options](ingestion-streams.html#stream-push), including from
+variety of <a href="ingestion-streams.html#stream-push">other streaming ingestion options</a>, including from
 popular streaming systems like Kafka, Storm, Samza, and Spark Streaming.
 </div>
 
