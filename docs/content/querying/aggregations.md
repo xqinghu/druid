@@ -181,7 +181,7 @@ Determine the number of distinct people (i.e. combinations of first and last nam
 }
 ```
 
-## Complex Aggregations
+## Approximate Aggregations
 
 Druid supports complex aggregations such as various types of approximate sketches. 
 
@@ -192,6 +192,8 @@ Uses [HyperLogLog](http://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf) to
 ```json
 { "type" : "hyperUnique", "name" : <output_name>, "fieldName" : <metric_name> }
 ```
+
+For more approximate aggregators, please see [theta sketches](../development/datasketches-aggregators.html).
 
 ## Miscellaneous Aggregations
 
