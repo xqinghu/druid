@@ -252,7 +252,7 @@ hardware. The most commonly adjusted configurations are:
 - `druid.query.groupBy.maxResults`
 
 <div class="note-caution">
-Keep -XX:MaxDirectMemory >= numThreads*sizeBytes, otherwise Druid will fail to start up..
+Keep -XX:MaxDirectMemory >= numThreads*sizeBytes, otherwise Druid will fail to start up.
 </div>
 
 Please see the Druid [configuration documentation](../configuration/index.html) for a full description of all 
@@ -276,6 +276,7 @@ tar -xzf zookeeper-3.4.6.tar.gz
 cd zookeeper-3.4.6
 cp conf/zoo_sample.cfg conf/zoo.cfg
 ./bin/zkServer.sh start
+```
 
 <div class="note-caution">
 In production, we also recommend running a ZooKeeper cluster on its own dedicated hardware.
@@ -326,7 +327,7 @@ bin/tranquility <server or kafka> -configFile <path_to_druid_distro>/conf/tranqu
 
 Copy the Druid distribution and your edited configurations to your servers set aside for the Druid Brokers. 
 
-On each one, *cd* into the distribution and run this command to start a Broker (you want to pipe the output to a log file):
+On each one, *cd* into the distribution and run this command to start a Broker (you may want to pipe the output to a log file):
 
 ```bash
 java `cat conf/druid/broker/jvm.config | xargs` -cp conf/druid/_common:conf/druid/broker:lib/* io.druid.cli.Main server broker
