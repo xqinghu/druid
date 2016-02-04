@@ -13,7 +13,7 @@ configuration as well.
 
 ## Select hardware
 
-The Coordinator and Overlord processes can be co-located on a single server that is responsible for handling the metadata and coordination needs of your cluster.  
+The Coordinator and Overlord processes can be co-located on a single server that is responsible for handling the metadata and coordination needs of your cluster. 
 The equivalent of an AWS [m3.xlarge](https://aws.amazon.com/ec2/instance-types/#M3) is sufficient for most clusters. This 
 hardware offers:
 
