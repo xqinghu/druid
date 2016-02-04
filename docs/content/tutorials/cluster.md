@@ -199,13 +199,13 @@ In `conf/_common/common.runtime.properties`, replace
 - `druid.metadata.storage.connector.connectURI`
 - `druid.metadata.storage.connector.host`
 
-```note-caution
+<div class="note-caution">
 In production, we recommend running 2 servers, each running a Druid Coordinator 
 and a Druid Overlord. We also recommend running a ZooKeeper cluster on its own dedicated hardware, 
 as well as  replicated [metadata 
 storage](http://druid.io/docs/latest/dependencies/metadata-storage.html) such as MySQL or 
 PostgreSQL, on its own dedicated hardware.
-```
+</div>
 
 ## Tune Druid processes that serve queries
 
@@ -227,9 +227,9 @@ hardware. The most commonly adjusted configurations are:
 - `druid.server.maxSize` and `druid.segmentCache.locations` on Historical Nodes
 - `druid.worker.capacity` on MiddleManagers
 
-```note
+<div class="note-info">
 Keep -XX:MaxDirectMemory >= numThreads*sizeBytes, otherwise Druid will fail to start up..
-```
+</div>
 
 Please see the Druid [configuration documentation](../configuration/index.html) for a full description of all 
 possible configuration options.
@@ -251,9 +251,9 @@ hardware. The most commonly adjusted configurations are:
 - `druid.query.groupBy.maxIntermediateRows`
 - `druid.query.groupBy.maxResults`
 
-```note-caution
+<div class="note-caution">
 Keep -XX:MaxDirectMemory >= numThreads*sizeBytes, otherwise Druid will fail to start up..
-```
+</div>
 
 Please see the Druid [configuration documentation](../configuration/index.html) for a full description of all 
 possible configuration options.
@@ -277,9 +277,9 @@ cd zookeeper-3.4.6
 cp conf/zoo_sample.cfg conf/zoo.cfg
 ./bin/zkServer.sh start
 
-```note-caution
+<div class="note-caution">
 In production, we also recommend running a ZooKeeper cluster on its own dedicated hardware.
-```
+</div>
 
 On your coordination server, *cd* into the distribution and start up the coordination services (you should do this in different windows or pipe the log to a file):
 
@@ -304,11 +304,11 @@ java `cat conf/druid/middleManager/jvm.config | xargs` -cp conf/druid/_common:co
 
 You can add more servers with Druid Historicals and MiddleManagers as needed.
 
-```note-info
+<div class="note-info">
 For clusters with complex resource allocation needs, you can break apart Historicals and MiddleManagers and scale the components individually. 
 This also allows you take advantage of Druid's built-in MiddleManager 
 autoscaling facility.
-```
+</div>
 
 If you are doing push-based stream ingestion with Kafka or over HTTP, you can also start Tranquility server on the same 
 hardware that holds MiddleManagers and Historicals. For large scale production, MiddleManagers and Tranquility server 

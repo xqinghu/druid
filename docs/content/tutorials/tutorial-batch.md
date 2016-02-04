@@ -17,10 +17,10 @@ want to load multiple files, you can provide them as a comma-separated string.
   * Which fields should be treated as metrics? This belongs in the "metricsSpec".
   * What time ranges (intervals) are being loaded? This belongs in the "intervals" of the "granularitySpec".
 
-```note-info
+<div class="note-info">
 If your data does not have a natural sense of time, you can tag each row with the current time. 
 You can also tag all rows with a fixed timestamp, like "2000-01-01T00:00:00.000Z".
-```
+</div>
 
 Let's use this pageviews dataset as an example. Druid supports TSV, CSV, and JSON out of the box. 
 Note that nested JSON objects are not supported, so if you do use JSON, you should provide a file 
@@ -99,10 +99,10 @@ curl -X 'POST' -H 'Content-Type:application/json' -d @quickstart/pageviews-index
 If anything goes wrong with this task (e.g. it finishes with status FAILED), you can troubleshoot  
 by visiting the "Task log" on the [overlord console](http://localhost:8090/console.html).
 
-```note-info
+<div class="note-info">
 Druid supports a wide variety of data formats, ingestion options, and configurations not 
 discussed here. For a full explanation of all available features, see the ingestion sections of the Druid 
 documentation.
-```
+</div>
 
 For more information on loading batch data, please see [the batch ingestion documentation](../ingestion/batch-ingestion.html).

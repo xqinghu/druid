@@ -20,12 +20,12 @@ When loading streams into Druid, we recommend using the [stream push](../ingesti
 process. In this tutorial we'll be using [Tranquility Server](../ingestion/stream-ingestion.html#server) to push 
 data into Druid over HTTP.
 
-```note-info
+<div class="note-info">
 This tutorial will show you how to push streams to Druid using HTTP, but Druid additionally supports 
 a wide variety of batch and streaming loading methods. See the *[Loading files](batch-ingestion.html)* 
 and *[Loading streams](stream-ingestion.html)* pages for more information about other options, 
 including from Hadoop, Kafka, Storm, Samza, Spark Streaming, and your own JVM apps.
-```
+</div>
 
 You can prepare for loading a new dataset over HTTP by writing a custom Tranquility Server 
 configuration. The bundled configuration is in `conf-quickstart/tranquility/server.json`, which 

@@ -87,11 +87,11 @@ Once every service has started, you are now ready to load data.
 
 We've included a sample of Wikipedia edits from September 12, 2015 to get you started.
 
-```note-info
+<div class="note-info">
 This section shows you how to load data in batches, but you can skip ahead to learn how to [load 
 streams in real-time](quickstart.html#load-streaming-data). Druid's streaming ingestion can load data 
 with virtually no delay between events occurring and being available for queries.
-```
+</div>
 
 The [dimensions](https://en.wikipedia.org/wiki/Dimension_%28data_warehouse%29) (attributes you can 
 filter and split on) in the Wikipedia dataset, other than time, are:
@@ -132,7 +132,7 @@ curl -X 'POST' -H 'Content-Type:application/json' -d @quickstart/wikiticker-inde
 
 Which will print the ID of the task if the submission was successful:
 
-```base
+```bash
 {"task":"index_hadoop_wikipedia_2013-10-09T21:30:32.802Z"}
 ```
 
@@ -171,11 +171,11 @@ directly to Druid.
 bin/tranquility server -configFile <path_to_druid_distro>/conf-quickstart/tranquility/server.json
 ```
 
-```note-info
+<div class="note-info">
 This section shows you how to load data using Tranquility Server, but Druid also supports a wide
 variety of [other streaming ingestion options](ingestion-streams.html#stream-push), including from
 popular streaming systems like Kafka, Storm, Samza, and Spark Streaming.
-```
+</div>
 
 The [dimensions](https://en.wikipedia.org/wiki/Dimension_%28data_warehouse%29) (attributes you can
 filter and split on) for this datasource are flexible. It's configured for *schemaless dimensions*,

@@ -4,18 +4,18 @@ layout: doc_page
 Production Cluster Configuration
 ================================
 
-```note-info
+<div class="note-info">
 This configuration is an example of what a production cluster could look like. Many other hardware combinations are 
 possible! Cheaper hardware is absolutely possible.
-```
+</div>
 
 This production Druid cluster assumes that metadata storage and Zookeeper are already set up. The deep storage that is 
 used for examples is [S3](https://aws.amazon.com/s3/) and [memcached](http://memcached.org/) is used for a distributed cache.
 
-```note-info
+<div class="note-info">
 The nodes in this example do not need to be on their own individual servers. Overlord and Coordinator nodes should be 
 co-located on the same hardware. 
-``` 
+</div>
 
 The nodes that respond to queries (Historical, Broker, and MiddleManager nodes) will use as many cores as are available, 
 depending on usage, so it is best to keep these on dedicated machines. The upper limit of effectively utilized cores is 
@@ -35,9 +35,9 @@ We'll use [EC2](https://aws.amazon.com/ec2/) r3.8xlarge nodes for query facing n
 The following examples work relatively well in production, however, a more optimized tuning for the nodes we selected and 
 more optimal hardware for a Druid cluster are both definitely possible.
 
-```note-caution
+<div class="note-caution">
 For high availability, there should be at least a redundant copy of every process running on separate hardware.
-```
+</div>
 
 ### Common Configuration (common.runtime.properties)
 

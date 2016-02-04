@@ -8,10 +8,10 @@ Druid can connect to any streaming data source through
 [Tranquility](https://github.com/druid-io/tranquility/blob/master/README.md), a package for pushing 
 streams to Druid in real-time. Druid does not come bundled with Tranquility, and you will have to download the distribution.
 
-```note-info
+<div class="note-info">
 If you've never loaded streaming data into Druid, we recommend trying out the
 [stream loading tutorial](../tutorials/tutorial-streams.html) first and then coming back to this page.
-```
+</div>
 
 Note that with all streaming ingestion options, you must ensure that incoming data is recent 
 enough (within a [configurable windowPeriod](#segmentgranularity-and-windowperiod) of the current 
