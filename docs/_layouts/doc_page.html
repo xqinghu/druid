@@ -21,11 +21,12 @@
     {% include site_head.html %}
     <style>
       .note {
-        padding: 10px 14px 10px 42px;
-        margin-left: 0;
-        background: $ light-gray;
-        border-radius: 2px;
+        position: relative;
         display: block;
+        padding: 10px 14px 10px 42px;
+        margin: 35px 0 35px 0;
+        background: light-gray;
+        border-radius: 3px;
       }
 
       .note:after {
@@ -35,27 +36,29 @@
          left: 0;
          bottom: 0;
          width: 42px;
-         background-position: 10px 11px;
+         background-position: 10px 9px;
          background-size: 22px 22px;
          background-repeat: no-repeat;
        }
 
       .note.info {
-        background: rgba(0, 0, 0, 0.4);
-        border-left: 2px solid rgba(0, 0, 0, 0.4);
+        background: rgba(51, 200, 208, 0.26);
+        border-left: 2px solid rgba(51, 200, 208, 0.5);
+        /*border: 1px solid rgba(51, 200, 208, 0.5);*/
       }
 
       .note.info:after {
-        background-image: url(http://imply.io/image/note-info.svg);
+        background-image: url(/img/note-info.svg);
       }
 
       .note.caution {
-        background: rgba(0, 0, 0, 0.4);
-        border-left: 2px solid rgba(0, 0, 0, 0.4);
+        background: rgba(249, 169, 86, 0.26);
+        border-left: 2px solid rgba(249, 169, 86, 0.5);
+        /*border: 1px solid rgba(249, 169, 86, 0.5);*/
       }
 
       .note.caution:after {
-        background-image: url(http://imply.io/image/note-caution.svg);
+        background-image: url(/img/note-caution.svg);
       }
     </style>
   </head>
