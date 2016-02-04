@@ -19,6 +19,45 @@
 <html lang="en">
   <head>
     {% include site_head.html %}
+    <style>
+      .note {
+        padding: 10px 14px 10px 42px;
+        margin-left: 0;
+        background: $ light-gray;
+        border-radius: 2px;
+        display: block;
+      }
+
+      .note:after {
+         content: '';
+         position: absolute;
+         top: 0;
+         left: 0;
+         bottom: 0;
+         width: 42px;
+         background-position: 10px 11px;
+         background-size: 22px 22px;
+         background-repeat: no-repeat;
+       }
+
+      .note.info {
+        background: rgba(0, 0, 0, 0.4);
+        border-left: 2px solid rgba(0, 0, 0, 0.4);
+      }
+
+      .note.info:after {
+        background-image: url(http://imply.io/image/note-info.svg);
+      }
+
+      .note.caution {
+        background: rgba(0, 0, 0, 0.4);
+        border-left: 2px solid rgba(0, 0, 0, 0.4);
+      }
+
+      .note.caution:after {
+        background-image: url(http://imply.io/image/note-caution.svg);
+      }
+    </style>
   </head>
   <body>
     {% include page_header.html %}
