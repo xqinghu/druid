@@ -319,12 +319,18 @@ public class ForkingTaskRunner implements TaskRunner, TaskLogStreamer
                               command.add(String.format("-Ddruid.host=%s", childHost));
                               command.add(String.format("-Ddruid.port=%d", childPort));
 
-                              if(config.isSeparateIngestionEndpoint()) {
-                                command.add(String.format("-Ddruid.indexer.task.chathandler.service=%s", "placeholder/serviceName"));
+                              if (config.isSeparateIngestionEndpoint()) {
+                                command.add(String.format(
+                                    "-Ddruid.indexer.task.chathandler.service=%s",
+                                    "placeholder/serviceName"
+                                ));
                                 // Actual serviceName will be passed by the EventReceiverFirehose when it registers itself with ChatHandlerProvider
                                 // Thus, "placeholder/serviceName" will be ignored
                                 command.add(String.format("-Ddruid.indexer.task.chathandler.host=%s", childHost));
-                                command.add(String.format("-Ddruid.indexer.task.chathandler.port=%d", childChatHandlerPort));
+                                command.add(String.format(
+                                    "-Ddruid.indexer.task.chathandler.port=%d",
+                                    childChatHandlerPort
+                                ));
                               }
 
                               command.add("io.druid.cli.Main");
@@ -400,7 +406,8 @@ public class ForkingTaskRunner implements TaskRunner, TaskLogStreamer
                                 saveRunningTasks();
                               }
                             }
-                            if(childChatHandlerPort > 0) {
+                            portFinder.markPortUnused(childPort);
+                            if (childChatHandlerPort > 0) {
                               portFinder.markPortUnused(childChatHandlerPort);
                             }
 
