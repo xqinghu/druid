@@ -118,14 +118,14 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
   public ServiceMetricEvent.Builder makeMetricBuilder(TimeseriesQuery query)
   {
     return DruidMetrics.makePartialQueryTimeMetric(query)
-                          .setDimension(
-                              "numMetrics",
-                              String.valueOf(query.getAggregatorSpecs().size())
-                          )
-                          .setDimension(
-                              "numComplexMetrics",
-                              String.valueOf(DruidMetrics.findNumComplexAggs(query.getAggregatorSpecs()))
-                          );
+                       .setDimension(
+                           "numMetrics",
+                           String.valueOf(query.getAggregatorSpecs().size())
+                       )
+                       .setDimension(
+                           "numComplexMetrics",
+                           String.valueOf(DruidMetrics.findNumComplexAggs(query.getAggregatorSpecs()))
+                       );
   }
 
   @Override
@@ -148,10 +148,14 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
         final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
         final byte[] aggregatorBytes = QueryCacheHelper.computeAggregatorBytes(query.getAggregatorSpecs());
         final byte[] granularityBytes = query.getGranularity().cacheKey();
+        final byte descending = 0;
+        final byte skipEmptyBuckets = query.isSkipEmptyBuckets() ? (byte) 1 : 0;
 
         return ByteBuffer
-            .allocate(1 + granularityBytes.length + filterBytes.length + aggregatorBytes.length)
+            .allocate(3 + granularityBytes.length + filterBytes.length + aggregatorBytes.length)
             .put(TIMESERIES_QUERY)
+            .put(descending)
+            .put(skipEmptyBuckets)
             .put(granularityBytes)
             .put(filterBytes)
             .put(aggregatorBytes)
