@@ -117,6 +117,13 @@
             <version>${project.parent.version}</version>
             <optional>true</optional>
         </dependency>
+
+        <dependency>
+            <groupId>io.druid.extensions</groupId>
+            <artifactId>druid-datasketches</artifactId>
+            <version>${project.parent.version}</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 
     <build>
