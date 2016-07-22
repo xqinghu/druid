@@ -60,7 +60,6 @@ import io.druid.indexing.overlord.TaskMaster;
 import io.druid.indexing.overlord.TaskRunnerFactory;
 import io.druid.indexing.overlord.TaskStorage;
 import io.druid.indexing.overlord.TaskStorageQueryAdapter;
-import io.druid.indexing.overlord.WorkerTaskRunner;
 import io.druid.indexing.overlord.autoscaling.PendingTaskBasedWorkerResourceManagementConfig;
 import io.druid.indexing.overlord.autoscaling.PendingTaskBasedWorkerResourceManagementStrategy;
 import io.druid.indexing.overlord.autoscaling.ResourceManagementSchedulerConfig;
@@ -262,7 +261,6 @@ public class CliOverlord extends ServerRunnable
           )
       );
       JettyServerInitUtils.addExtensionFilters(root, injector);
-      root.addFilter(JettyServerInitUtils.defaultGzipFilterHolder(), "/*", null);
 
       // /status should not redirect, so add first
       root.addFilter(GuiceFilter.class, "/status/*", null);
@@ -274,7 +272,12 @@ public class CliOverlord extends ServerRunnable
       root.addFilter(GuiceFilter.class, "/druid/*", null);
 
       HandlerList handlerList = new HandlerList();
-      handlerList.setHandlers(new Handler[]{JettyServerInitUtils.getJettyRequestLogHandler(), root});
+      handlerList.setHandlers(
+          new Handler[]{
+              JettyServerInitUtils.getJettyRequestLogHandler(),
+              JettyServerInitUtils.wrapWithDefaultGzipHandler(root)
+          }
+      );
 
       server.setHandler(handlerList);
     }
