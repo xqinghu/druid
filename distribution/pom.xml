@@ -28,7 +28,7 @@
     <parent>
         <artifactId>druid</artifactId>
         <groupId>io.druid</groupId>
-        <version>0.9.1.1</version>
+        <version>0.9.1.1-cc1-SNAPSHOT</version>
     </parent>
 
     <dependencies>
@@ -71,6 +71,8 @@
                                 <argument>${settings.localRepository}</argument>
                                 <argument>-c</argument>
                                 <argument>io.druid.extensions:druid-avro-extensions</argument>
+                                <argument>-c</argument>
+                                <argument>io.druid.extensions:druid-caffeine-cache</argument>
                                 <argument>-c</argument>
                                 <argument>io.druid.extensions:druid-examples</argument>
                                 <argument>-c</argument>

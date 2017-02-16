@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <!--
   ~ Licensed to Metamarkets Group Inc. (Metamarkets) under one
   ~ or more contributor license agreements.  See the NOTICE file
@@ -18,12 +19,13 @@
   ~ under the License.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
   <groupId>io.druid.extensions</groupId>
-  <artifactId>druid-namespace-lookup</artifactId>
-  <name>druid-namespace-lookup</name>
-  <description>Extension to rename Druid dimension values using namespaces</description>
+  <artifactId>druid-caffeine-cache</artifactId>
+  <name>druid-caffeine-cache</name>
+  <description>Local cache implementation for Druid using Caffeine https://github.com/ben-manes/caffeine as the underlying implementation</description>
 
   <parent>
     <groupId>io.druid</groupId>
@@ -36,19 +38,23 @@
     <dependency>
       <groupId>io.druid</groupId>
       <artifactId>druid-api</artifactId>
-      <version>${project.parent.version}</version>
       <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.druid</groupId>
-      <artifactId>druid-processing</artifactId>
       <version>${project.parent.version}</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>io.druid</groupId>
       <artifactId>druid-server</artifactId>
       <version>${project.parent.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+      <version>2.3.1</version>
+    </dependency>
+    <dependency>
+      <groupId>net.jpountz.lz4</groupId>
+      <artifactId>lz4</artifactId>
       <scope>provided</scope>
     </dependency>
 
@@ -58,23 +64,17 @@
       <artifactId>junit</artifactId>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>io.druid</groupId>
-      <artifactId>druid-server</artifactId>
-      <version>${project.parent.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.curator</groupId>
-      <artifactId>curator-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>mx4j</groupId>
-      <artifactId>mx4j-tools</artifactId>
-      <version>3.0.1</version>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>
