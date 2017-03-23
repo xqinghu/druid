@@ -27,7 +27,6 @@ import com.google.common.io.Files;
 import com.metamx.common.MapUtils;
 import com.microsoft.azure.storage.StorageException;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
 import org.easymock.EasyMockSupport;
@@ -112,8 +111,8 @@ public class AzureDataSegmentPusherTest extends EasyMockSupport
   @Test
   public void getAzurePathsTest()
   {
-    final String storageDir = DataSegmentPusherUtil.getStorageDir(dataSegment);
     AzureDataSegmentPusher pusher = new AzureDataSegmentPusher(azureStorage, azureAccountConfig, jsonMapper);
+    final String storageDir = pusher.getStorageDir(dataSegment);
 
     Map<String, String> paths = pusher.getAzurePaths(dataSegment);
 

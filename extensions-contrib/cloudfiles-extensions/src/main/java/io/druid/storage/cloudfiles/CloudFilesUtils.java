@@ -21,15 +21,10 @@ package io.druid.storage.cloudfiles;
 
 import com.google.common.base.Predicate;
 import com.metamx.common.RetryUtils;
-import io.druid.segment.loading.DataSegmentPusherUtil;
-import io.druid.timeline.DataSegment;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
 
-/**
- *
- */
 public class CloudFilesUtils
 {
 
@@ -68,10 +63,4 @@ public class CloudFilesUtils
     }
     return path;
   }
-
-  public static String buildCloudFilesPath(String basePath, final DataSegment segment)
-  {
-    return buildCloudFilesPath(basePath, DataSegmentPusherUtil.getStorageDir(segment));
-  }
-
 }

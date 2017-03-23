@@ -19,15 +19,22 @@
 
 package io.druid.segment.loading;
 
+import com.google.common.base.Joiner;
 import io.druid.timeline.DataSegment;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Map;
 
 public interface DataSegmentPusher
 {
+  Joiner JOINER = Joiner.on("/").skipNulls();
+
   @Deprecated
   String getPathForHadoop(String dataSource);
   String getPathForHadoop();
   DataSegment push(File file, DataSegment segment) throws IOException;
+  Map<String, Object> makeLoadSpec(URI finalIndexZipFilePath);
+  String getStorageDir(DataSegment segment);
 }

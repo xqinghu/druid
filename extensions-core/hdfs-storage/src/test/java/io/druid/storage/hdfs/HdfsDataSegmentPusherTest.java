@@ -24,11 +24,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -38,6 +36,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  */
@@ -70,6 +69,33 @@ public class HdfsDataSegmentPusherTest
   public void testPushWithoutScheme() throws Exception
   {
     testUsingScheme(null);
+  }
+
+  @Test
+  public void shouldNotHaveColonsInHdfsStorageDir() throws Exception
+  {
+    Configuration conf = new Configuration(true);
+    HdfsDataSegmentPusherConfig config = new HdfsDataSegmentPusherConfig();
+
+    Interval interval = new Interval("2011-10-01/2011-10-02");
+    ImmutableMap<String, Object> loadSpec = ImmutableMap.<String, Object>of("something", "or_other");
+
+    DataSegment segment = new DataSegment(
+        "something",
+        interval,
+        "brand:new:version",
+        loadSpec,
+        Arrays.asList("dim1", "dim2"),
+        Arrays.asList("met1", "met2"),
+        NoneShardSpec.instance(),
+        null,
+        1
+    );
+
+    HdfsDataSegmentPusher pusher = new HdfsDataSegmentPusher(config, conf, new DefaultObjectMapper());
+
+    String storageDir = pusher.getStorageDir(segment);
+    Assert.assertEquals("something/20111001T000000.000Z_20111002T000000.000Z/brand_new_version/0", storageDir);
   }
 
   private void testUsingScheme(final String scheme) throws Exception
@@ -110,18 +136,20 @@ public class HdfsDataSegmentPusherTest
 
     Assert.assertEquals(segmentToPush.getSize(), segment.getSize());
     Assert.assertEquals(segmentToPush, segment);
-    Assert.assertEquals(ImmutableMap.of(
-        "type",
-        "hdfs",
-        "path",
-        String.format(
-            "%s/%s/index.zip",
-            config.getStorageDirectory(),
-            DataSegmentPusherUtil.getHdfsStorageDir(segmentToPush)
-        )
-    ), segment.getLoadSpec());
+    Assert.assertEquals(
+        ImmutableMap.of(
+            "type",
+            "hdfs",
+            "path",
+            String.format(
+                "%s/%s/index.zip",
+                config.getStorageDirectory(),
+                pusher.getStorageDir(segmentToPush)
+            )
+        ), segment.getLoadSpec()
+    );
     // rename directory after push
-    final String segmentPath = DataSegmentPusherUtil.getHdfsStorageDir(segment);
+    final String segmentPath = pusher.getStorageDir(segment);
     File indexFile = new File(String.format("%s/%s/index.zip", storageDirectory, segmentPath));
     Assert.assertTrue(indexFile.exists());
     File descriptorFile = new File(String.format("%s/%s/descriptor.json", storageDirectory, segmentPath));

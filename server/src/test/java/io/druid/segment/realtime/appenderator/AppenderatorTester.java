@@ -54,6 +54,7 @@ import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
 import io.druid.segment.loading.DataSegmentPusher;
+import io.druid.segment.loading.BaseDataSegmentPusher;
 import io.druid.segment.realtime.FireDepartmentMetrics;
 import io.druid.server.coordination.DataSegmentAnnouncer;
 import io.druid.timeline.DataSegment;
@@ -62,6 +63,7 @@ import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -165,7 +167,7 @@ public class AppenderatorTester implements AutoCloseable
     );
     emitter.start();
     EmittingLogger.registerEmitter(emitter);
-    dataSegmentPusher = new DataSegmentPusher()
+    dataSegmentPusher = new BaseDataSegmentPusher()
     {
       @Deprecated
       @Override
@@ -185,6 +187,12 @@ public class AppenderatorTester implements AutoCloseable
       {
         pushedSegments.add(segment);
         return segment;
+      }
+
+      @Override
+      public Map<String, Object> makeLoadSpec(URI uri)
+      {
+        throw new UnsupportedOperationException();
       }
     };
     appenderator = Appenderators.createRealtime(

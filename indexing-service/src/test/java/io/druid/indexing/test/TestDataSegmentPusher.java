@@ -21,14 +21,16 @@ package io.druid.indexing.test;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-import io.druid.segment.loading.DataSegmentPusher;
+import io.druid.segment.loading.BaseDataSegmentPusher;
 import io.druid.timeline.DataSegment;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Map;
 import java.util.Set;
 
-public class TestDataSegmentPusher implements DataSegmentPusher
+public class TestDataSegmentPusher extends BaseDataSegmentPusher
 {
   private final Set<DataSegment> pushedSegments = Sets.newConcurrentHashSet();
 
@@ -50,6 +52,12 @@ public class TestDataSegmentPusher implements DataSegmentPusher
   {
     pushedSegments.add(segment);
     return segment;
+  }
+
+  @Override
+  public Map<String, Object> makeLoadSpec(URI uri)
+  {
+    throw new UnsupportedOperationException();
   }
 
   public Set<DataSegment> getPushedSegments()

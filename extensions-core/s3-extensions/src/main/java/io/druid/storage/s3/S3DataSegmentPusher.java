@@ -28,7 +28,7 @@ import com.google.inject.Inject;
 import com.metamx.common.CompressionUtils;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.segment.SegmentUtils;
-import io.druid.segment.loading.DataSegmentPusher;
+import io.druid.segment.loading.BaseDataSegmentPusher;
 import io.druid.timeline.DataSegment;
 import org.jets3t.service.ServiceException;
 import org.jets3t.service.acl.gs.GSAccessControlList;
@@ -37,9 +37,11 @@ import org.jets3t.service.model.S3Object;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
-public class S3DataSegmentPusher implements DataSegmentPusher
+public class S3DataSegmentPusher extends BaseDataSegmentPusher
 {
   private static final EmittingLogger log = new EmittingLogger(S3DataSegmentPusher.class);
 
@@ -64,7 +66,12 @@ public class S3DataSegmentPusher implements DataSegmentPusher
   @Override
   public String getPathForHadoop()
   {
-    return String.format("s3n://%s/%s", config.getBucket(), config.getBaseKey());
+    return String.format(
+        "%s://%s/%s",
+        config.isUseS3AForHadoop() ? "s3a" : "s3n",
+        config.getBucket(),
+        config.getBaseKey()
+    );
   }
 
   @Deprecated
@@ -106,16 +113,7 @@ public class S3DataSegmentPusher implements DataSegmentPusher
               s3Client.putObject(outputBucket, toPush);
 
               final DataSegment outSegment = inSegment.withSize(indexSize)
-                                                      .withLoadSpec(
-                                                          ImmutableMap.<String, Object>of(
-                                                              "type",
-                                                              "s3_zip",
-                                                              "bucket",
-                                                              outputBucket,
-                                                              "key",
-                                                              toPush.getKey()
-                                                          )
-                                                      )
+                                                      .withLoadSpec(makeLoadSpecInternal(outputBucket, toPush.getKey()))
                                                       .withBinaryVersion(SegmentUtils.getVersionFromDir(indexFilesDir));
 
               File descriptorFile = File.createTempFile("druid", "descriptor.json");
@@ -147,5 +145,22 @@ public class S3DataSegmentPusher implements DataSegmentPusher
     catch (Exception e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  @Override
+  public Map<String, Object> makeLoadSpec(URI finalIndexZipFilePath)
+  {
+    // remove the leading "/"
+    return makeLoadSpecInternal(finalIndexZipFilePath.getHost(), finalIndexZipFilePath.getPath().substring(1));
+  }
+
+  private Map<String, Object> makeLoadSpecInternal(String bucket, String key)
+  {
+    return ImmutableMap.<String, Object>of(
+        "type", "s3_zip",
+        "bucket", bucket,
+        "key", key,
+        "schemeForHadoop", config.isUseS3AForHadoop() ? "s3a" : "s3n"
+    );
   }
 }

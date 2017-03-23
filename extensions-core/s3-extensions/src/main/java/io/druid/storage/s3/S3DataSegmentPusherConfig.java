@@ -34,6 +34,9 @@ public class S3DataSegmentPusherConfig
   @JsonProperty
   private boolean disableAcl = false;
 
+  @JsonProperty
+  private boolean useS3AForHadoop = false;
+
   public void setBucket(String bucket)
   {
     this.bucket = bucket;
@@ -49,6 +52,10 @@ public class S3DataSegmentPusherConfig
     this.disableAcl = disableAcl;
   }
 
+  public void setUseS3AForHadoop(boolean useS3AForHadoop) {
+    this.useS3AForHadoop = useS3AForHadoop;
+  }
+
   public String getBucket()
   {
     return bucket;
@@ -62,5 +69,9 @@ public class S3DataSegmentPusherConfig
   public boolean getDisableAcl()
   {
     return disableAcl;
+  }
+
+  public boolean isUseS3AForHadoop() {
+    return useS3AForHadoop;
   }
 }

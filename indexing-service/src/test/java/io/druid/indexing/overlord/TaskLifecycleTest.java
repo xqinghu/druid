@@ -90,6 +90,7 @@ import io.druid.segment.indexing.granularity.UniformGranularitySpec;
 import io.druid.segment.loading.DataSegmentArchiver;
 import io.druid.segment.loading.DataSegmentMover;
 import io.druid.segment.loading.DataSegmentPusher;
+import io.druid.segment.loading.BaseDataSegmentPusher;
 import io.druid.segment.loading.LocalDataSegmentKiller;
 import io.druid.segment.loading.SegmentLoaderConfig;
 import io.druid.segment.loading.SegmentLoaderLocalCacheManager;
@@ -120,6 +121,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -454,7 +456,7 @@ public class TaskLifecycleTest
 
   private DataSegmentPusher setUpDataSegmentPusher()
   {
-    return new DataSegmentPusher()
+    return new BaseDataSegmentPusher()
     {
       @Override
       public String getPathForHadoop()
@@ -474,6 +476,12 @@ public class TaskLifecycleTest
       {
         pushedSegments++;
         return segment;
+      }
+
+      @Override
+      public Map<String, Object> makeLoadSpec(URI uri)
+      {
+        throw new UnsupportedOperationException();
       }
     };
   }
@@ -999,7 +1007,7 @@ public class TaskLifecycleTest
   @Test(timeout = 60_000L)
   public void testRealtimeIndexTaskFailure() throws Exception
   {
-    dataSegmentPusher = new DataSegmentPusher()
+    dataSegmentPusher = new BaseDataSegmentPusher()
     {
       @Deprecated
       @Override
@@ -1018,6 +1026,12 @@ public class TaskLifecycleTest
       public DataSegment push(File file, DataSegment dataSegment) throws IOException
       {
         throw new RuntimeException("FAILURE");
+      }
+
+      @Override
+      public Map<String, Object> makeLoadSpec(URI uri)
+      {
+        throw new UnsupportedOperationException();
       }
     };
 

@@ -29,20 +29,20 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.utils.UUIDUtils;
 import io.druid.segment.SegmentUtils;
 import io.druid.segment.loading.DataSegmentPusher;
-import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.timeline.DataSegment;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.HadoopFsWrapper;
 import org.apache.hadoop.fs.Path;
+import org.joda.time.format.ISODateTimeFormat;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
+import java.util.Map;
 
-/**
- */
 public class HdfsDataSegmentPusher implements DataSegmentPusher
 {
   private static final Logger log = new Logger(HdfsDataSegmentPusher.class);
@@ -81,7 +81,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher
   @Override
   public DataSegment push(File inDir, DataSegment segment) throws IOException
   {
-    final String storageDir = DataSegmentPusherUtil.getHdfsStorageDir(segment);
+    final String storageDir = getStorageDir(segment);
 
     log.info(
         "Copying segment[%s] to HDFS at location[%s/%s]",
@@ -90,11 +90,13 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher
         storageDir
     );
 
-    Path tmpFile = new Path(String.format(
-        "%s/%s/index.zip",
-        config.getStorageDirectory(),
-        UUIDUtils.generateUuid()
-    ));
+    Path tmpFile = new Path(
+        String.format(
+            "%s/%s/index.zip",
+            config.getStorageDirectory(),
+            UUIDUtils.generateUuid()
+        )
+    );
     FileSystem fs = tmpFile.getFileSystem(hadoopConfig);
 
     fs.mkdirs(tmpFile.getParent());
@@ -107,7 +109,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher
       final Path outFile = new Path(String.format("%s/%s/index.zip", config.getStorageDirectory(), storageDir));
       final Path outDir = outFile.getParent();
       dataSegment = createDescriptorFile(
-          segment.withLoadSpec(makeLoadSpec(outFile))
+          segment.withLoadSpec(makeLoadSpec(outFile.toUri()))
                  .withSize(size)
                  .withBinaryVersion(SegmentUtils.getVersionFromDir(inDir)),
           tmpFile.getParent(),
@@ -124,24 +126,34 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher
               outDir
           );
         } else {
-          throw new IOException(String.format(
-              "Failed to rename temp directory[%s] and segment directory[%s] is not present.",
-              tmpFile.getParent(),
-              outDir
-          ));
+          throw new IOException(
+              String.format(
+                  "Failed to rename temp directory[%s] and segment directory[%s] is not present.",
+                  tmpFile.getParent(),
+                  outDir
+              )
+          );
         }
       }
-    } finally {
+    }
+    finally {
       try {
         if (fs.exists(tmpFile.getParent()) && !fs.delete(tmpFile.getParent(), true)) {
           log.error("Failed to delete temp directory[%s]", tmpFile.getParent());
         }
-      } catch(IOException ex) {
+      }
+      catch (IOException ex) {
         log.error(ex, "Failed to delete temp directory[%s]", tmpFile.getParent());
       }
     }
 
     return dataSegment;
+  }
+
+  @Override
+  public Map<String, Object> makeLoadSpec(URI finalIndexZipFilePath)
+  {
+    return ImmutableMap.<String, Object>of("type", "hdfs", "path", finalIndexZipFilePath.toString());
   }
 
   private DataSegment createDescriptorFile(DataSegment segment, Path outDir, final FileSystem fs) throws IOException
@@ -152,11 +164,6 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher
         .wrap(jsonMapper.writeValueAsBytes(segment))
         .copyTo(new HdfsOutputStreamSupplier(fs, descriptorFile));
     return segment;
-  }
-
-  private ImmutableMap<String, Object> makeLoadSpec(Path outFile)
-  {
-    return ImmutableMap.<String, Object>of("type", "hdfs", "path", outFile.toUri().toString());
   }
 
   private static class HdfsOutputStreamSupplier extends ByteSink
@@ -175,5 +182,24 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher
     {
       return fs.create(descriptorFile);
     }
+  }
+
+  /**
+   * Due to https://issues.apache.org/jira/browse/HDFS-13 ":" are not allowed in
+   * path names. So we format paths differently for HDFS.
+   */
+  @Override
+  public String getStorageDir(DataSegment segment)
+  {
+    return JOINER.join(
+        segment.getDataSource(),
+        String.format(
+            "%s_%s",
+            segment.getInterval().getStart().toString(ISODateTimeFormat.basicDateTime()),
+            segment.getInterval().getEnd().toString(ISODateTimeFormat.basicDateTime())
+        ),
+        segment.getVersion().replaceAll(":", "_"),
+        segment.getShardSpec().getPartitionNum()
+    );
   }
 }
