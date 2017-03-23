@@ -81,7 +81,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   public StorageLocation findStorageLocationIfLoaded(final DataSegment segment)
   {
     for (StorageLocation location : locations) {
-      File localStorageDir = new File(location.getPath(), DataSegmentPusherUtil.getStorageDir(segment));
+      File localStorageDir = new File(location.getPath(), BaseDataSegmentPusher.getDefaultStorageDir(segment));
       if (localStorageDir.exists()) {
         return location;
       }
@@ -119,7 +119,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
         );
       }
 
-      File storageDir = new File(loc.getPath(), DataSegmentPusherUtil.getStorageDir(segment));
+      File storageDir = new File(loc.getPath(), BaseDataSegmentPusher.getDefaultStorageDir(segment));
 
       // We use a marker to prevent the case where a segment is downloaded, but before the download completes,
       // the parent directories of the segment are removed
@@ -141,8 +141,13 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
       // LoadSpec isn't materialized until here so that any system can interpret Segment without having to have all the LoadSpec dependencies.
       final LoadSpec loadSpec = jsonMapper.convertValue(segment.getLoadSpec(), LoadSpec.class);
       final LoadSpec.LoadSpecResult result = loadSpec.loadSegment(storageDir);
-      if(result.getSize() != segment.getSize()){
-        log.warn("Segment [%s] is different than expected size. Expected [%d] found [%d]", segment.getIdentifier(), segment.getSize(), result.getSize());
+      if (result.getSize() != segment.getSize()) {
+        log.warn(
+            "Segment [%s] is different than expected size. Expected [%d] found [%d]",
+            segment.getIdentifier(),
+            segment.getSize(),
+            result.getSize()
+        );
       }
 
       if (!downloadStartMarker.delete()) {
@@ -151,7 +156,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
 
       retVal = storageDir;
     } else {
-      retVal = new File(loc.getPath(), DataSegmentPusherUtil.getStorageDir(segment));
+      retVal = new File(loc.getPath(), BaseDataSegmentPusher.getDefaultStorageDir(segment));
     }
 
     loc.addSegment(segment);
@@ -176,7 +181,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
     try {
       // Druid creates folders of the form dataSource/interval/version/partitionNum.
       // We need to clean up all these directories if they are all empty.
-      File cacheFile = new File(loc.getPath(), DataSegmentPusherUtil.getStorageDir(segment));
+      File cacheFile = new File(loc.getPath(), BaseDataSegmentPusher.getDefaultStorageDir(segment));
       cleanupCacheFiles(loc.getPath(), cacheFile);
       loc.removeSegment(segment);
     }

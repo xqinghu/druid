@@ -20,6 +20,7 @@
 package io.druid.cli;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Module;
@@ -33,13 +34,16 @@ import io.druid.guice.LazySingleton;
 import io.druid.guice.RealtimeModule;
 import io.druid.query.lookup.LookupModule;
 import io.druid.segment.loading.DataSegmentPusher;
+import io.druid.segment.loading.BaseDataSegmentPusher;
 import io.druid.server.coordination.DataSegmentAnnouncer;
 import io.druid.server.initialization.jetty.ChatHandlerServerModule;
 import io.druid.timeline.DataSegment;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
@@ -119,7 +123,7 @@ public class CliRealtimeExample extends ServerRunnable
     }
   }
 
-  private static class NoopDataSegmentPusher implements DataSegmentPusher
+  private static class NoopDataSegmentPusher extends BaseDataSegmentPusher
   {
 
     @Override
@@ -139,6 +143,12 @@ public class CliRealtimeExample extends ServerRunnable
     public DataSegment push(File file, DataSegment segment) throws IOException
     {
       return segment;
+    }
+
+    @Override
+    public Map<String, Object> makeLoadSpec(URI uri)
+    {
+      return ImmutableMap.of();
     }
   }
 

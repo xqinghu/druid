@@ -22,13 +22,14 @@ package io.druid.storage.s3;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.metamx.common.RetryUtils;
-import io.druid.segment.loading.DataSegmentPusherUtil;
+import io.druid.segment.loading.BaseDataSegmentPusher;
 import io.druid.timeline.DataSegment;
-import java.io.IOException;
-import java.util.concurrent.Callable;
 import org.jets3t.service.ServiceException;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.model.S3Object;
+
+import java.io.IOException;
+import java.util.concurrent.Callable;
 
 /**
  *
@@ -107,12 +108,11 @@ public class S3Utils
     return true;
   }
 
-
   public static String constructSegmentPath(String baseKey, DataSegment segment)
   {
     return JOINER.join(
         baseKey.isEmpty() ? null : baseKey,
-        DataSegmentPusherUtil.getStorageDir(segment)
+        BaseDataSegmentPusher.getDefaultStorageDir(segment)
     ) + "/index.zip";
   }
 

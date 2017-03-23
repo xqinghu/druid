@@ -70,6 +70,7 @@ import org.joda.time.Interval;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -372,6 +373,18 @@ public class IndexTask extends AbstractFixedIntervalTask
         final DataSegment pushedSegment = toolbox.getSegmentPusher().push(file, segment);
         pushedSegments.add(pushedSegment);
         return pushedSegment;
+      }
+
+      @Override
+      public Map<String, Object> makeLoadSpec(URI finalIndexZipFilePath)
+      {
+        return toolbox.getSegmentPusher().makeLoadSpec(finalIndexZipFilePath);
+      }
+
+      @Override
+      public String getStorageDir(DataSegment segment)
+      {
+        return toolbox.getSegmentPusher().getStorageDir(segment);
       }
     };
 

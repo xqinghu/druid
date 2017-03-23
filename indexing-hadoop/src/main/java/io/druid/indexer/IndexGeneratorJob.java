@@ -734,7 +734,8 @@ public class IndexGeneratorJob implements Jobby
                 new Path(config.getSchema().getIOConfig().getSegmentOutputPath()),
                 outputFS,
                 segmentTemplate
-            )
+            ),
+            HadoopDruidIndexerConfig.DATA_SEGMENT_PUSHER
         );
 
         Path descriptorPath = config.makeDescriptorInfoPath(segment);

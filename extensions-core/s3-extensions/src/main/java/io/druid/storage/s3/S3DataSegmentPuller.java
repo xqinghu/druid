@@ -53,7 +53,7 @@ import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.model.StorageObject;
 
 /**
- * A data segment puller that also hanldes URI data pulls.
+ * A data segment puller that also handles URI data pulls.
  */
 public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
 {

@@ -44,7 +44,7 @@ import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.indexing.granularity.ArbitraryGranularitySpec;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
-import io.druid.segment.loading.DataSegmentPusher;
+import io.druid.segment.loading.BaseDataSegmentPusher;
 import io.druid.segment.realtime.firehose.LocalFirehoseFactory;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.HashBasedNumberedShardSpec;
@@ -60,9 +60,9 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -344,7 +344,7 @@ public class IndexTaskTest
             }
             return null;
           }
-        }, null, new DataSegmentPusher()
+        }, null, new BaseDataSegmentPusher()
         {
           @Deprecated
           @Override
@@ -365,7 +365,13 @@ public class IndexTaskTest
             segments.add(segment);
             return segment;
           }
-        }, null, null, null, null, null, null, null, null, null, null, temporaryFolder.newFolder(),
+
+          @Override
+          public Map<String, Object> makeLoadSpec(URI uri)
+          {
+            throw new UnsupportedOperationException();
+          }
+        }, null, null, null, null, null, null, null, null, null, jsonMapper, temporaryFolder.newFolder(),
             indexMerger, indexIO, null, null, indexMergerV9
         )
     );

@@ -71,7 +71,7 @@ import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.segment.loading.DataSegmentArchiver;
 import io.druid.segment.loading.DataSegmentKiller;
 import io.druid.segment.loading.DataSegmentMover;
-import io.druid.segment.loading.DataSegmentPusher;
+import io.druid.segment.loading.BaseDataSegmentPusher;
 import io.druid.segment.loading.LocalDataSegmentPuller;
 import io.druid.segment.loading.LocalLoadSpec;
 import io.druid.segment.loading.SegmentLoaderConfig;
@@ -93,6 +93,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -211,7 +212,7 @@ public class IngestSegmentFirehoseFactoryTest
         new TaskConfig(tmpDir.getAbsolutePath(), null, null, 50000, null, false, null, null),
         tac,
         newMockEmitter(),
-        new DataSegmentPusher()
+        new BaseDataSegmentPusher()
         {
           @Deprecated
           @Override
@@ -230,6 +231,12 @@ public class IngestSegmentFirehoseFactoryTest
           public DataSegment push(File file, DataSegment segment) throws IOException
           {
             return segment;
+          }
+
+          @Override
+          public Map<String, Object> makeLoadSpec(URI uri)
+          {
+            throw new UnsupportedOperationException();
           }
         },
         new DataSegmentKiller()

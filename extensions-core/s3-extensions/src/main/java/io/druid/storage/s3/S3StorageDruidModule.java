@@ -82,6 +82,10 @@ public class S3StorageDruidModule implements DruidModule
              .addBinding("s3n")
              .to(S3TimestampVersionedDataFinder.class)
              .in(LazySingleton.class);
+    MapBinder.newMapBinder(binder, String.class, SearchableVersionedDataFinder.class)
+             .addBinding("s3a")
+             .to(S3TimestampVersionedDataFinder.class)
+             .in(LazySingleton.class);
     Binders.dataSegmentPullerBinder(binder).addBinding(SCHEME).to(S3DataSegmentPuller.class).in(LazySingleton.class);
     Binders.dataSegmentKillerBinder(binder).addBinding(SCHEME).to(S3DataSegmentKiller.class).in(LazySingleton.class);
     Binders.dataSegmentMoverBinder(binder).addBinding(SCHEME).to(S3DataSegmentMover.class).in(LazySingleton.class);

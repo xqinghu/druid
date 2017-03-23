@@ -31,10 +31,10 @@ import io.druid.timeline.DataSegment;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Map;
 
-/**
- */
-public class LocalDataSegmentPusher implements DataSegmentPusher
+public class LocalDataSegmentPusher extends BaseDataSegmentPusher
 {
   private static final Logger log = new Logger(LocalDataSegmentPusher.class);
 
@@ -69,7 +69,7 @@ public class LocalDataSegmentPusher implements DataSegmentPusher
   @Override
   public DataSegment push(File dataSegmentFile, DataSegment segment) throws IOException
   {
-    File outDir = new File(config.getStorageDirectory(), DataSegmentPusherUtil.getStorageDir(segment));
+    File outDir = new File(config.getStorageDirectory(), getStorageDir(segment));
 
     log.info("Copying segment[%s] to local filesystem at location[%s]", segment.getIdentifier(), outDir.toString());
 
@@ -80,7 +80,7 @@ public class LocalDataSegmentPusher implements DataSegmentPusher
       }
 
       return createDescriptorFile(
-          segment.withLoadSpec(makeLoadSpec(outDir))
+          segment.withLoadSpec(makeLoadSpec(outDir.toURI()))
                  .withSize(size)
                  .withBinaryVersion(SegmentUtils.getVersionFromDir(dataSegmentFile)),
           outDir
@@ -95,11 +95,17 @@ public class LocalDataSegmentPusher implements DataSegmentPusher
     long size = CompressionUtils.zip(dataSegmentFile, outFile);
 
     return createDescriptorFile(
-        segment.withLoadSpec(makeLoadSpec(outFile))
+        segment.withLoadSpec(makeLoadSpec(outFile.toURI()))
                .withSize(size)
                .withBinaryVersion(SegmentUtils.getVersionFromDir(dataSegmentFile)),
         outDir
     );
+  }
+
+  @Override
+  public Map<String, Object> makeLoadSpec(URI finalIndexZipFilePath)
+  {
+    return ImmutableMap.<String, Object>of("type", "local", "path", finalIndexZipFilePath.getPath());
   }
 
   private DataSegment createDescriptorFile(DataSegment segment, File outDir) throws IOException
@@ -108,10 +114,5 @@ public class LocalDataSegmentPusher implements DataSegmentPusher
     log.info("Creating descriptor file at[%s]", descriptorFile);
     Files.copy(ByteStreams.newInputStreamSupplier(jsonMapper.writeValueAsBytes(segment)), descriptorFile);
     return segment;
-  }
-
-  private ImmutableMap<String, Object> makeLoadSpec(File outFile)
-  {
-    return ImmutableMap.<String, Object>of("type", "local", "path", outFile.toString());
   }
 }

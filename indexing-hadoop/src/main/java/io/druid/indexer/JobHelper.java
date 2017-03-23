@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import com.google.common.io.OutputSupplier;
@@ -35,7 +34,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.indexer.updater.HadoopDruidConverterConfig;
 import io.druid.segment.ProgressIndicator;
 import io.druid.segment.SegmentUtils;
-import io.druid.segment.loading.DataSegmentPusherUtil;
+import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.timeline.DataSegment;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -378,7 +377,8 @@ public class JobHelper
       final Progressable progressable,
       final TaskAttemptID taskAttemptID,
       final File mergedBase,
-      final Path segmentBasePath
+      final Path segmentBasePath,
+      final DataSegmentPusher dataSegmentPusher
   )
       throws IOException
   {
@@ -414,36 +414,9 @@ public class JobHelper
 
     final Path finalIndexZipFilePath = new Path(segmentBasePath, "index.zip");
     final URI indexOutURI = finalIndexZipFilePath.toUri();
-    final ImmutableMap<String, Object> loadSpec;
-    // TODO: Make this a part of Pushers or Pullers
-    switch (outputFS.getScheme()) {
-      case "hdfs":
-      case "viewfs":
-      case "gs":
-        loadSpec = ImmutableMap.<String, Object>of(
-            "type", "hdfs",
-            "path", indexOutURI.toString()
-        );
-        break;
-      case "s3":
-      case "s3n":
-        loadSpec = ImmutableMap.<String, Object>of(
-            "type", "s3_zip",
-            "bucket", indexOutURI.getHost(),
-            "key", indexOutURI.getPath().substring(1) // remove the leading "/"
-        );
-        break;
-      case "file":
-        loadSpec = ImmutableMap.<String, Object>of(
-            "type", "local",
-            "path", indexOutURI.getPath()
-        );
-        break;
-      default:
-        throw new IAE("Unknown file system scheme [%s]", outputFS.getScheme());
-    }
+
     final DataSegment finalSegment = segmentTemplate
-        .withLoadSpec(loadSpec)
+        .withLoadSpec(dataSegmentPusher.makeLoadSpec(indexOutURI))
         .withSize(size.get())
         .withBinaryVersion(SegmentUtils.getVersionFromDir(mergedBase));
 
@@ -575,9 +548,8 @@ public class JobHelper
       DataSegment segment
   )
   {
-    String segmentDir = "hdfs".equals(fileSystem.getScheme()) || "viewfs".equals(fileSystem.getScheme())
-                        ? DataSegmentPusherUtil.getHdfsStorageDir(segment)
-                        : DataSegmentPusherUtil.getStorageDir(segment);
+    String segmentDir = HadoopDruidIndexerConfig.DATA_SEGMENT_PUSHER.getStorageDir(segment);
+
     return new Path(prependFSIfNullScheme(fileSystem, basePath), String.format("./%s", segmentDir));
   }
 
@@ -726,7 +698,18 @@ public class JobHelper
     final String type = loadSpec.get("type").toString();
     final URI segmentLocURI;
     if ("s3_zip".equals(type)) {
-      segmentLocURI = URI.create(String.format("s3n://%s/%s", loadSpec.get("bucket"), loadSpec.get("key")));
+      if (loadSpec.containsKey("schemeForHadoop")) {
+        segmentLocURI = URI.create(
+            String.format(
+                "%s://%s/%s",
+                loadSpec.get("schemeForHadoop"),
+                loadSpec.get("bucket"),
+                loadSpec.get("key")
+            )
+        );
+      } else {
+        segmentLocURI = URI.create(String.format("s3n://%s/%s", loadSpec.get("bucket"), loadSpec.get("key")));
+      }
     } else if ("hdfs".equals(type)) {
       segmentLocURI = URI.create(loadSpec.get("path").toString());
     } else if ("local".equals(type)) {
