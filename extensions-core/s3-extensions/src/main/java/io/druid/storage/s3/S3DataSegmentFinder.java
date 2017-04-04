@@ -87,9 +87,15 @@ public class S3DataSegmentFinder implements DataSegmentFinder
               log.info("Found segment [%s] located at [%s]", dataSegment.getIdentifier(), indexZip);
 
               final Map<String, Object> loadSpec = dataSegment.getLoadSpec();
-              if (!loadSpec.get("type").equals(S3StorageDruidModule.SCHEME) || !loadSpec.get("key").equals(indexZip)) {
+              if (!S3StorageDruidModule.SCHEME.equals(loadSpec.get("type"))
+                  || !indexZip.equals(loadSpec.get(S3DataSegmentPuller.KEY))
+                  || !config.getBucket().equals(loadSpec.get(S3DataSegmentPuller.BUCKET))
+                  ) {
+
                 loadSpec.put("type", S3StorageDruidModule.SCHEME);
-                loadSpec.put("key", indexZip);
+                loadSpec.put(S3DataSegmentPuller.KEY, indexZip);
+                loadSpec.put(S3DataSegmentPuller.BUCKET, config.getBucket());
+
                 if (updateDescriptor) {
                   log.info(
                       "Updating loadSpec in descriptor.json at [%s] with new path [%s]",
