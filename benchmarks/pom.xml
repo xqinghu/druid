@@ -27,7 +27,7 @@
   <parent>
     <groupId>io.druid</groupId>
     <artifactId>druid</artifactId>
-    <version>0.10.0-rc1-iap-ksog1</version>
+    <version>0.10.0-rc1-iap-ksog2-SNAPSHOT</version>
   </parent>
 
   <prerequisites>
