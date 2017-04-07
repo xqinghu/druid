@@ -1522,7 +1522,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
   @Test
   public void testResetDataSourceMetadata() throws Exception
   {
-    supervisor = getSupervisor(1, 1, true, "PT1H", null);
+    supervisor = getSupervisor(1, 1, true, "PT1H", null, false);
     expect(taskMaster.getTaskQueue()).andReturn(Optional.of(taskQueue)).anyTimes();
     expect(taskMaster.getTaskRunner()).andReturn(Optional.of(taskRunner)).anyTimes();
     expect(taskRunner.getRunningTasks()).andReturn(Collections.EMPTY_LIST).anyTimes();
@@ -1570,7 +1570,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
   @Test
   public void testResetNoDataSourceMetadata() throws Exception
   {
-    supervisor = getSupervisor(1, 1, true, "PT1H", null);
+    supervisor = getSupervisor(1, 1, true, "PT1H", null, false);
     expect(taskMaster.getTaskQueue()).andReturn(Optional.of(taskQueue)).anyTimes();
     expect(taskMaster.getTaskRunner()).andReturn(Optional.of(taskRunner)).anyTimes();
     expect(taskRunner.getRunningTasks()).andReturn(Collections.EMPTY_LIST).anyTimes();

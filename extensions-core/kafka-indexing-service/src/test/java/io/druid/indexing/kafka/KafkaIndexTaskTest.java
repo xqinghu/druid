@@ -1290,7 +1290,8 @@ public class KafkaIndexTaskTest
             kafkaServer.consumerProperties(),
             true,
             false,
-            null
+            null,
+            false
         ),
         null,
         true
