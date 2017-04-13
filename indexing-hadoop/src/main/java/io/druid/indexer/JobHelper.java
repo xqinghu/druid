@@ -20,9 +20,12 @@
 package io.druid.indexer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import com.google.common.io.OutputSupplier;
@@ -32,6 +35,7 @@ import com.metamx.common.ISE;
 import com.metamx.common.RetryUtils;
 import com.metamx.common.logger.Logger;
 import io.druid.indexer.updater.HadoopDruidConverterConfig;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.ProgressIndicator;
 import io.druid.segment.SegmentUtils;
 import io.druid.segment.loading.DataSegmentPusher;
@@ -74,7 +78,7 @@ import java.util.zip.ZipOutputStream;
 public class JobHelper
 {
   private static final Logger log = new Logger(JobHelper.class);
-
+  private static final ObjectMapper MAPPER = new DefaultObjectMapper();
 
   private static final int NUM_RETRIES = 8;
   private static final int SECONDS_BETWEEN_RETRIES = 2;
@@ -311,11 +315,36 @@ public class JobHelper
 
   public static Configuration injectSystemProperties(Configuration conf)
   {
+    List<String> allowedPrefixes;
+    try {
+      allowedPrefixes = MAPPER.readValue(
+          System.getProperty("druid.indexer.hadoopProperties.allowedPrefixes", "[]"),
+          new TypeReference<List<String>>() {}
+      );
+    }
+    catch (IOException e) {
+      log.error(e, "Failed to parse druid.indexer.hadoopProperties.allowedPrefixes");
+      allowedPrefixes = ImmutableList.of();
+    }
+
+    StringBuilder propArgsBuilder = new StringBuilder();
     for (String propName : System.getProperties().stringPropertyNames()) {
       if (propName.startsWith("hadoop.")) {
         conf.set(propName.substring("hadoop.".length()), System.getProperty(propName));
       }
+
+      for (String allowedPrefix : allowedPrefixes) {
+        if (propName.startsWith(allowedPrefix.trim())) {
+          propArgsBuilder.append(String.format("-D%s=%s ", propName, System.getProperty(propName)));
+        }
+      }
     }
+
+    String propArgs = propArgsBuilder.toString();
+    for (String property : new String[]{"mapreduce.reduce.java.opts", "mapreduce.map.java.opts"}) {
+      conf.set(property, propArgs + Strings.nullToEmpty(conf.get(property)));
+    }
+
     return conf;
   }
 
@@ -698,11 +727,11 @@ public class JobHelper
     final String type = loadSpec.get("type").toString();
     final URI segmentLocURI;
     if ("s3_zip".equals(type)) {
-      if (loadSpec.containsKey("schemeForHadoop")) {
+      if (loadSpec.containsKey("S3Schema")) {
         segmentLocURI = URI.create(
             String.format(
                 "%s://%s/%s",
-                loadSpec.get("schemeForHadoop"),
+                loadSpec.get("S3Schema"),
                 loadSpec.get("bucket"),
                 loadSpec.get("key")
             )

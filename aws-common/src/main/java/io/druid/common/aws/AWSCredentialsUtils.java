@@ -19,21 +19,39 @@
 
 package io.druid.common.aws;
 
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSCredentialsProviderChain;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.metamx.common.logger.Logger;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class AWSCredentialsUtils
 {
-  public static AWSCredentialsProviderChain defaultAWSCredentialsProviderChain(final AWSCredentialsConfig config) {
-    return new AWSCredentialsProviderChain(
-        new ConfigDrivenAwsCredentialsConfigProvider(config),
-        new LazyFileSessionCredentialsProvider(config),
-        new EnvironmentVariableCredentialsProvider(),
-        new SystemPropertiesCredentialsProvider(),
-        new ProfileCredentialsProvider(),
-        new InstanceProfileCredentialsProvider());
+  private static final Logger log = new Logger(AWSCredentialsUtils.class);
+
+  public static AWSCredentialsProviderChain defaultAWSCredentialsProviderChain(final AWSCredentialsConfig config)
+  {
+    List<AWSCredentialsProvider> awsCredentialsProviders = new ArrayList<>();
+
+    awsCredentialsProviders.add(new ConfigDrivenAwsCredentialsConfigProvider(config));
+    awsCredentialsProviders.add(new LazyFileSessionCredentialsProvider(config));
+    awsCredentialsProviders.add(new EnvironmentVariableCredentialsProvider());
+    awsCredentialsProviders.add(new SystemPropertiesCredentialsProvider());
+
+    try {
+      awsCredentialsProviders.add(new ProfileCredentialsProvider());
+    }
+    catch (Exception e) {
+      log.info(e.getMessage());
+    }
+
+    awsCredentialsProviders.add(new InstanceProfileCredentialsProvider());
+
+    return new AWSCredentialsProviderChain(awsCredentialsProviders.toArray(new AWSCredentialsProvider[6]));
   }
 }

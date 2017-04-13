@@ -68,7 +68,7 @@ public class S3DataSegmentPusher extends BaseDataSegmentPusher
   {
     return String.format(
         "%s://%s/%s",
-        config.isUseS3AForHadoop() ? "s3a" : "s3n",
+        config.isUseS3aSchema() ? "s3a" : "s3n",
         config.getBucket(),
         config.getBaseKey()
     );
@@ -160,7 +160,7 @@ public class S3DataSegmentPusher extends BaseDataSegmentPusher
         "type", "s3_zip",
         "bucket", bucket,
         "key", key,
-        "schemeForHadoop", config.isUseS3AForHadoop() ? "s3a" : "s3n"
+        "S3Schema", config.isUseS3aSchema() ? "s3a" : "s3n"
     );
   }
 }
