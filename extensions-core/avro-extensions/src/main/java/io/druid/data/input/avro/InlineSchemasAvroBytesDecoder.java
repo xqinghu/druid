@@ -25,11 +25,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-
 import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.ParseException;
-
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
@@ -74,7 +72,7 @@ public class InlineSchemasAvroBytesDecoder implements AvroBytesDecoder
       Map<String, Object> schema = e.getValue();
       String schemaStr = mapper.writeValueAsString(schema);;
 
-      logger.info("Schema string [%s] = [%s]", id, schemaStr);
+      logger.debug("Schema string [%s] = [%s]", id, schemaStr);
       schemaObjs.put(id, new Schema.Parser().parse(schemaStr));
     }
   }
