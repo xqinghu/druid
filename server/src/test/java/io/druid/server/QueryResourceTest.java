@@ -188,7 +188,9 @@ public class QueryResourceTest
   @Test
   public void testSecuredQuery() throws Exception
   {
-    EasyMock.expect(testServletRequest.getAttribute(EasyMock.anyString())).andReturn(
+    EasyMock.expect(testServletRequest.getAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED)).andReturn(null).times(2);
+
+    EasyMock.expect(testServletRequest.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)).andReturn(
         new AuthorizationInfo()
         {
           @Override
@@ -204,6 +206,13 @@ public class QueryResourceTest
           }
         }
     ).times(2);
+
+    testServletRequest.setAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED, false);
+    EasyMock.expectLastCall().times(1);
+
+    testServletRequest.setAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED, true);
+    EasyMock.expectLastCall().times(1);
+
     EasyMock.replay(testServletRequest);
 
     queryResource = new QueryResource(
@@ -215,7 +224,7 @@ public class QueryResourceTest
         new NoopServiceEmitter(),
         new NoopRequestLogger(),
         queryManager,
-        new AuthConfig(true),
+        new AuthConfig(true, false, null, null, false),
         new DefaultGenericQueryMetricsFactory(jsonMapper)
     );
 
@@ -244,7 +253,9 @@ public class QueryResourceTest
     final CountDownLatch startAwaitLatch = new CountDownLatch(1);
     final CountDownLatch cancelledCountDownLatch = new CountDownLatch(1);
 
-    EasyMock.expect(testServletRequest.getAttribute(EasyMock.anyString())).andReturn(
+    EasyMock.expect(testServletRequest.getAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED)).andReturn(null).times(2);
+
+    EasyMock.expect(testServletRequest.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)).andReturn(
         new AuthorizationInfo()
         {
           @Override
@@ -275,6 +286,10 @@ public class QueryResourceTest
           }
         }
     ).times(2);
+
+    testServletRequest.setAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED, true);
+    EasyMock.expectLastCall().times(1);
+
     EasyMock.replay(testServletRequest);
 
     queryResource = new QueryResource(
@@ -286,7 +301,7 @@ public class QueryResourceTest
         new NoopServiceEmitter(),
         new NoopRequestLogger(),
         queryManager,
-        new AuthConfig(true),
+        new AuthConfig(true, false, null, null, false),
         new DefaultGenericQueryMetricsFactory(jsonMapper)
     );
 
@@ -347,7 +362,9 @@ public class QueryResourceTest
     final CountDownLatch waitFinishLatch = new CountDownLatch(2);
     final CountDownLatch startAwaitLatch = new CountDownLatch(1);
 
-    EasyMock.expect(testServletRequest.getAttribute(EasyMock.anyString())).andReturn(
+    EasyMock.expect(testServletRequest.getAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED)).andReturn(null).times(2);
+
+    EasyMock.expect(testServletRequest.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)).andReturn(
         new AuthorizationInfo()
         {
           @Override
@@ -372,6 +389,13 @@ public class QueryResourceTest
           }
         }
     ).times(2);
+
+    testServletRequest.setAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED, true);
+    EasyMock.expectLastCall().times(1);
+
+    testServletRequest.setAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED, false);
+    EasyMock.expectLastCall().times(1);
+
     EasyMock.replay(testServletRequest);
 
     queryResource = new QueryResource(
@@ -383,7 +407,7 @@ public class QueryResourceTest
         new NoopServiceEmitter(),
         new NoopRequestLogger(),
         queryManager,
-        new AuthConfig(true),
+        new AuthConfig(true, false, null, null, false),
         new DefaultGenericQueryMetricsFactory(jsonMapper)
     );
 

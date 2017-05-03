@@ -21,12 +21,15 @@ package io.druid.guice.http;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import com.metamx.http.client.CredentialedHttpClient;
 import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.HttpClientConfig;
 import com.metamx.http.client.HttpClientInit;
+import com.metamx.http.client.auth.BasicCredentials;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.annotations.Global;
+import io.druid.server.security.AuthConfig;
 
 import java.lang.annotation.Annotation;
 
@@ -114,7 +117,16 @@ public class HttpClientModule implements Module
       if (getSslContextBinding() != null) {
         builder.withSslContext(getSslContextBinding().getProvider().get());
       }
-      return HttpClientInit.createClient(builder.build(), LifecycleUtils.asMmxLifecycle(getLifecycleProvider().get()));
+
+      HttpClient client = HttpClientInit.createClient(builder.build(), LifecycleUtils.asMmxLifecycle(getLifecycleProvider().get()));
+      final AuthConfig authConfig = getAuthConfig();
+      if (authConfig.isEnableBasicAuthentication()) {
+        client = new CredentialedHttpClient(
+            new BasicCredentials(authConfig.getSystemPrincipal(), authConfig.getSystemPrincipalSecret()),
+            client
+        );
+      }
+      return client;
     }
   }
 }

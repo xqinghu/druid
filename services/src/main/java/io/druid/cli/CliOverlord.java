@@ -84,6 +84,8 @@ import io.druid.server.http.RedirectFilter;
 import io.druid.server.http.RedirectInfo;
 import io.druid.server.initialization.jetty.JettyServerInitUtils;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
+import io.druid.server.security.AuthenticationUtils;
+import io.druid.server.security.StaticResourceFilter;
 import io.druid.tasklogs.TaskLogStreamer;
 import io.druid.tasklogs.TaskLogs;
 import org.eclipse.jetty.server.Handler;
@@ -288,10 +290,22 @@ public class CliOverlord extends ServerRunnable
               }
           )
       );
+      // Add the authentication filter first
+      AuthenticationUtils.addBasicAuthenticationFilter(root, injector);
+
       JettyServerInitUtils.addExtensionFilters(root, injector);
+
+      // Check that requests were authorized before sending responses
+      AuthenticationUtils.addPreResponseAuthorizationCheckFilter(root, injector);
 
       // /status should not redirect, so add first
       root.addFilter(GuiceFilter.class, "/status/*", null);
+
+      root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/", null);
+      root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/console.html", null);
+      root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/old-console/*", null);
+      root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/images/*", null);
+      root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/js/*", null);
 
       // redirect anything other than status to the current lead
       root.addFilter(new FilterHolder(injector.getInstance(RedirectFilter.class)), "/*", null);

@@ -49,7 +49,7 @@ import java.util.Collection;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public class SecurityResourceFilterTest extends ResourceFilterTestHelper
+public class OverlordSecurityResourceFilterTest extends ResourceFilterTestHelper
 {
 
   @Parameterized.Parameters(name = "{index}: requestPath={0}, requestMethod={1}, resourceFilter={2}")
@@ -75,7 +75,7 @@ public class SecurityResourceFilterTest extends ResourceFilterTestHelper
   private TaskStorageQueryAdapter tsqa;
   private SupervisorManager supervisorManager;
 
-  public SecurityResourceFilterTest(
+  public OverlordSecurityResourceFilterTest(
       String requestPath,
       String requestMethod,
       ResourceFilter resourceFilter,
