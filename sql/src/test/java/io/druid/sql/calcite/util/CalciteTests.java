@@ -50,11 +50,11 @@ import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryQueryToolChest;
 import io.druid.query.metadata.SegmentMetadataQueryRunnerFactory;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
-import io.druid.query.select.SelectQuery;
+import io.druid.query.scan.ScanQuery;
+import io.druid.query.scan.ScanQueryEngine;
+import io.druid.query.scan.ScanQueryQueryToolChest;
+import io.druid.query.scan.ScanQueryRunnerFactory;
 import io.druid.query.select.SelectQueryConfig;
-import io.druid.query.select.SelectQueryEngine;
-import io.druid.query.select.SelectQueryQueryToolChest;
-import io.druid.query.select.SelectQueryRunnerFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
@@ -104,15 +104,10 @@ public class CalciteTests
               )
           )
           .put(
-              SelectQuery.class,
-              new SelectQueryRunnerFactory(
-                  new SelectQueryQueryToolChest(
-                      TestHelper.getObjectMapper(),
-                      QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator(),
-                      selectConfigSupplier
-                  ),
-                  new SelectQueryEngine(selectConfigSupplier),
-                  QueryRunnerTestHelper.NOOP_QUERYWATCHER
+              ScanQuery.class,
+              new ScanQueryRunnerFactory(
+                  new ScanQueryQueryToolChest(),
+                  new ScanQueryEngine()
               )
           )
           .put(

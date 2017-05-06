@@ -20,7 +20,6 @@ package io.druid.query.scan;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.query.BaseQuery;
@@ -32,13 +31,15 @@ import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.VirtualColumn;
+import io.druid.segment.VirtualColumns;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
-@JsonTypeName("scan")
 public class ScanQuery extends BaseQuery<ScanResultValue>
 {
   public static final String SCAN = "scan";
@@ -46,6 +47,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
   public static final String RESULT_FORMAT_COMPACTED_LIST = "compactedList";
   public static final String RESULT_FORMAT_VALUE_VECTOR = "valueVector";
 
+  private final VirtualColumns virtualColumns;
   private final String resultFormat;
   private final int batchSize;
   private final int limit;
@@ -56,6 +58,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
   public ScanQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
+      @JsonProperty("virtualColumns") VirtualColumns virtualColumns,
       @JsonProperty("resultFormat") String resultFormat,
       @JsonProperty("batchSize") int batchSize,
       @JsonProperty("limit") int limit,
@@ -65,6 +68,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
   )
   {
     super(dataSource, querySegmentSpec, false, context);
+    this.virtualColumns = VirtualColumns.nullToEmpty(virtualColumns);
     this.resultFormat = resultFormat == null ? RESULT_FORMAT_LIST : resultFormat;
     this.batchSize = (batchSize == 0) ? 4096 * 5 : batchSize;
     this.limit = (limit == 0) ? Integer.MAX_VALUE : limit;
@@ -72,6 +76,12 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     Preconditions.checkArgument(this.limit > 0, "limit must be greater than 0");
     this.dimFilter = dimFilter;
     this.columns = columns;
+  }
+
+  @JsonProperty
+  public VirtualColumns getVirtualColumns()
+  {
+    return virtualColumns;
   }
 
   @JsonProperty
@@ -99,6 +109,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
   }
 
   @Override
+  @JsonProperty
   public DimFilter getFilter()
   {
     return dimFilter;
@@ -108,12 +119,6 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
   public String getType()
   {
     return SCAN;
-  }
-
-  @JsonProperty("filter")
-  public DimFilter getDimensionsFilter()
-  {
-    return dimFilter;
   }
 
   @JsonProperty
@@ -128,6 +133,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     return new ScanQuery(
         getDataSource(),
         querySegmentSpec,
+        virtualColumns,
         resultFormat,
         batchSize,
         limit,
@@ -143,6 +149,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     return new ScanQuery(
         dataSource,
         getQuerySegmentSpec(),
+        virtualColumns,
         resultFormat,
         batchSize,
         limit,
@@ -158,6 +165,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     return new ScanQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        virtualColumns,
         resultFormat,
         batchSize,
         limit,
@@ -172,6 +180,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     return new ScanQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        virtualColumns,
         resultFormat,
         batchSize,
         limit,
@@ -182,7 +191,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
   }
 
   @Override
-  public boolean equals(Object o)
+  public boolean equals(final Object o)
   {
     if (this == o) {
       return true;
@@ -193,34 +202,19 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     if (!super.equals(o)) {
       return false;
     }
-
-    ScanQuery that = (ScanQuery) o;
-
-    if (batchSize != that.batchSize) {
-      return false;
-    }
-    if (limit != that.limit) {
-      return false;
-    }
-    if (resultFormat != null ? !resultFormat.equals(that.resultFormat) : that.resultFormat != null) {
-      return false;
-    }
-    if (dimFilter != null ? !dimFilter.equals(that.dimFilter) : that.dimFilter != null) {
-      return false;
-    }
-    return columns != null ? columns.equals(that.columns) : that.columns == null;
+    final ScanQuery scanQuery = (ScanQuery) o;
+    return batchSize == scanQuery.batchSize &&
+           limit == scanQuery.limit &&
+           Objects.equals(virtualColumns, scanQuery.virtualColumns) &&
+           Objects.equals(resultFormat, scanQuery.resultFormat) &&
+           Objects.equals(dimFilter, scanQuery.dimFilter) &&
+           Objects.equals(columns, scanQuery.columns);
   }
 
   @Override
   public int hashCode()
   {
-    int result = super.hashCode();
-    result = 31 * result + (resultFormat != null ? resultFormat.hashCode() : 0);
-    result = 31 * result + batchSize;
-    result = 31 * result + limit;
-    result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
-    result = 31 * result + (columns != null ? columns.hashCode() : 0);
-    return result;
+    return Objects.hash(super.hashCode(), virtualColumns, resultFormat, batchSize, limit, dimFilter, columns);
   }
 
   @Override
@@ -229,7 +223,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     return "ScanQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            ", querySegmentSpec=" + getQuerySegmentSpec() +
-           ", descending=" + isDescending() +
+           ", virtualColumns=" + virtualColumns +
            ", resultFormat='" + resultFormat + '\'' +
            ", batchSize=" + batchSize +
            ", limit=" + limit +
@@ -257,6 +251,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
   {
     private DataSource dataSource;
     private QuerySegmentSpec querySegmentSpec;
+    private VirtualColumns virtualColumns;
     private Map<String, Object> context;
     private String resultFormat;
     private int batchSize;
@@ -268,6 +263,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     {
       dataSource = null;
       querySegmentSpec = null;
+      virtualColumns = null;
       context = null;
       resultFormat = null;
       batchSize = 0;
@@ -281,6 +277,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
       return new ScanQuery(
           dataSource,
           querySegmentSpec,
+          virtualColumns,
           resultFormat,
           batchSize,
           limit,
@@ -326,6 +323,22 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     {
       querySegmentSpec = new LegacySegmentSpec(l);
       return this;
+    }
+
+    public ScanQueryBuilder virtualColumns(VirtualColumns virtualColumns)
+    {
+      this.virtualColumns = virtualColumns;
+      return this;
+    }
+
+    public ScanQueryBuilder virtualColumns(List<VirtualColumn> virtualColumns)
+    {
+      return virtualColumns(VirtualColumns.create(virtualColumns));
+    }
+
+    public ScanQueryBuilder virtualColumns(VirtualColumn... virtualColumns)
+    {
+      return virtualColumns(VirtualColumns.create(Arrays.asList(virtualColumns)));
     }
 
     public ScanQueryBuilder context(Map<String, Object> c)

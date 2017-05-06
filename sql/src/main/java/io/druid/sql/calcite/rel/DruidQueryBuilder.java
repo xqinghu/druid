@@ -20,10 +20,11 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.granularity.Granularities;
 import io.druid.java.util.common.granularity.Granularity;
@@ -35,8 +36,7 @@ import io.druid.query.groupby.having.DimFilterHavingSpec;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.StringComparators;
-import io.druid.query.select.PagingSpec;
-import io.druid.query.select.SelectQuery;
+import io.druid.query.scan.ScanQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.topn.DimensionTopNMetricSpec;
 import io.druid.query.topn.InvertedTopNMetricSpec;
@@ -466,7 +466,7 @@ public class DruidQueryBuilder
   }
 
   /**
-   * Return this query as a Select query, or null if this query is not compatible with Select.
+   * Return this query as a Scan query, or null if this query is not compatible with Scan.
    *
    * @param dataSource         data source to query
    * @param sourceRowSignature row signature of the dataSource
@@ -474,7 +474,7 @@ public class DruidQueryBuilder
    *
    * @return query or null
    */
-  public SelectQuery toSelectQuery(
+  public ScanQuery toScanQuery(
       final DataSource dataSource,
       final RowSignature sourceRowSignature,
       final Map<String, Object> context
@@ -485,33 +485,16 @@ public class DruidQueryBuilder
     }
 
     final Filtration filtration = Filtration.create(filter).optimize(sourceRowSignature);
-    final boolean descending;
 
-    if (limitSpec != null) {
-      // Safe to assume limitSpec has zero or one entry; DruidSelectSortRule wouldn't push in anything else.
-      if (limitSpec.getColumns().size() > 0) {
-        final OrderByColumnSpec orderBy = Iterables.getOnlyElement(limitSpec.getColumns());
-        if (!orderBy.getDimension().equals(Column.TIME_COLUMN_NAME)) {
-          throw new ISE("WTF?! Got select with non-time orderBy[%s]", orderBy);
-        }
-        descending = orderBy.getDirection() == OrderByColumnSpec.Direction.DESCENDING;
-      } else {
-        descending = false;
-      }
-    } else {
-      descending = false;
-    }
-
-    return new SelectQuery(
+    return new ScanQuery(
         dataSource,
         filtration.getQuerySegmentSpec(),
-        descending,
+        selectProjection != null ? selectProjection.getVirtualColumns() : VirtualColumns.EMPTY,
+        ScanQuery.RESULT_FORMAT_COMPACTED_LIST,
+        0,
+        limitSpec == null ? 0 : limitSpec.getLimit(),
         filtration.getDimFilter(),
-        Granularities.ALL,
-        selectProjection != null ? selectProjection.getDimensions() : ImmutableList.<DimensionSpec>of(),
-        selectProjection != null ? selectProjection.getMetrics() : ImmutableList.<String>of(),
-        null,
-        new PagingSpec(null, 0) /* dummy -- will be replaced */,
+        Ordering.natural().sortedCopy(ImmutableSet.copyOf(getRowOrder())),
         context
     );
   }

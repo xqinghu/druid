@@ -193,8 +193,7 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
         pw.item("filter", filtration.getDimFilter());
       }
       if (queryBuilder.getSelectProjection() != null) {
-        pw.item("selectDimensions", queryBuilder.getSelectProjection().getDimensions());
-        pw.item("selectMetrics", queryBuilder.getSelectProjection().getMetrics());
+        pw.item("selectProjection", queryBuilder.getSelectProjection().getVirtualColumns());
       }
       if (queryBuilder.getGrouping() != null) {
         pw.item("dimensions", queryBuilder.getGrouping().getDimensions());

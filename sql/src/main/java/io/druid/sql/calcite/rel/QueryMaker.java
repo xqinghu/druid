@@ -20,7 +20,6 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -36,16 +35,13 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.select.EventHolder;
-import io.druid.query.select.PagingSpec;
-import io.druid.query.select.SelectQuery;
-import io.druid.query.select.SelectResultValue;
+import io.druid.query.scan.ScanQuery;
+import io.druid.query.scan.ScanResultValue;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.DimensionAndMetricValueExtractor;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
-import io.druid.segment.column.Column;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
@@ -57,12 +53,8 @@ import org.apache.calcite.util.NlsString;
 import org.joda.time.DateTime;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class QueryMaker
 {
@@ -133,123 +125,65 @@ public class QueryMaker
       return executeGroupBy(queryBuilder, groupByQuery);
     }
 
-    final SelectQuery selectQuery = queryBuilder.toSelectQuery(
+    final ScanQuery scanQuery = queryBuilder.toScanQuery(
         dataSource,
         sourceRowSignature,
         plannerContext.getQueryContext()
     );
-    if (selectQuery != null) {
-      return executeSelect(queryBuilder, selectQuery);
+    if (scanQuery != null) {
+      return executeScan(queryBuilder, scanQuery);
     }
 
     throw new IllegalStateException("WTF?! Cannot execute query even though we planned it?");
   }
 
-  private Sequence<Object[]> executeSelect(
+  private Sequence<Object[]> executeScan(
       final DruidQueryBuilder queryBuilder,
-      final SelectQuery baseQuery
+      final ScanQuery query
   )
   {
-    Preconditions.checkState(queryBuilder.getGrouping() == null, "grouping must be null");
-
     final List<RelDataTypeField> fieldList = queryBuilder.getRowType().getFieldList();
-    final Integer limit = queryBuilder.getLimitSpec() != null ? queryBuilder.getLimitSpec().getLimit() : null;
 
-    // Select is paginated, we need to make multiple queries.
-    final Sequence<Sequence<Object[]>> sequenceOfSequences = Sequences.simple(
-        new Iterable<Sequence<Object[]>>()
-        {
-          @Override
-          public Iterator<Sequence<Object[]>> iterator()
-          {
-            final AtomicBoolean morePages = new AtomicBoolean(true);
-            final AtomicReference<Map<String, Integer>> pagingIdentifiers = new AtomicReference<>();
-            final AtomicLong rowsRead = new AtomicLong();
+    Hook.QUERY_PLAN.run(query);
 
-            // Each Sequence<Object[]> is one page.
-            return new Iterator<Sequence<Object[]>>()
+    // SQL row column index -> Scan query column index
+    final int[] columnMapping = new int[queryBuilder.getRowOrder().size()];
+
+    final Map<String, Integer> scanColumnOrder = Maps.newHashMap();
+    for (int i = 0; i < query.getColumns().size(); i++) {
+      scanColumnOrder.put(query.getColumns().get(i), i);
+    }
+    for (int i = 0; i < queryBuilder.getRowOrder().size(); i++) {
+      columnMapping[i] = scanColumnOrder.get(queryBuilder.getRowOrder().get(i));
+    }
+
+    return Sequences.concat(
+        Sequences.map(
+            query.run(walker, Maps.<String, Object>newHashMap()),
+            new Function<ScanResultValue, Sequence<Object[]>>()
             {
               @Override
-              public boolean hasNext()
+              public Sequence<Object[]> apply(final ScanResultValue result)
               {
-                return morePages.get();
+                final List<Object[]> retVals = new ArrayList<>();
+                final List<List<Object>> rows = (List<List<Object>>) result.getEvents();
+
+                for (List<Object> row : rows) {
+                  final Object[] retVal = new Object[fieldList.size()];
+                  for (RelDataTypeField field : fieldList) {
+                    retVal[field.getIndex()] = coerce(
+                        row.get(columnMapping[field.getIndex()]),
+                        field.getType().getSqlTypeName()
+                    );
+                  }
+                  retVals.add(retVal);
+                }
+
+                return Sequences.simple(retVals);
               }
-
-              @Override
-              public Sequence<Object[]> next()
-              {
-                final SelectQuery queryWithPagination = baseQuery.withPagingSpec(
-                    new PagingSpec(
-                        pagingIdentifiers.get(),
-                        plannerContext.getPlannerConfig().getSelectThreshold(),
-                        true
-                    )
-                );
-
-                Hook.QUERY_PLAN.run(queryWithPagination);
-
-                morePages.set(false);
-                final AtomicBoolean gotResult = new AtomicBoolean();
-
-                return Sequences.concat(
-                    Sequences.map(
-                        queryWithPagination.run(walker, Maps.<String, Object>newHashMap()),
-                        new Function<Result<SelectResultValue>, Sequence<Object[]>>()
-                        {
-                          @Override
-                          public Sequence<Object[]> apply(final Result<SelectResultValue> result)
-                          {
-                            if (!gotResult.compareAndSet(false, true)) {
-                              throw new ISE("WTF?! Expected single result from Select query but got multiple!");
-                            }
-
-                            pagingIdentifiers.set(result.getValue().getPagingIdentifiers());
-                            final List<Object[]> retVals = new ArrayList<>();
-
-                            for (EventHolder holder : result.getValue().getEvents()) {
-                              morePages.set(true);
-                              final Map<String, Object> map = holder.getEvent();
-                              final Object[] retVal = new Object[fieldList.size()];
-                              for (RelDataTypeField field : fieldList) {
-                                final String outputName = queryBuilder.getRowOrder().get(field.getIndex());
-                                if (outputName.equals(Column.TIME_COLUMN_NAME)) {
-                                  retVal[field.getIndex()] = coerce(
-                                      holder.getTimestamp().getMillis(),
-                                      field.getType().getSqlTypeName()
-                                  );
-                                } else {
-                                  retVal[field.getIndex()] = coerce(
-                                      map.get(outputName),
-                                      field.getType().getSqlTypeName()
-                                  );
-                                }
-                              }
-                              if (limit == null || rowsRead.incrementAndGet() <= limit) {
-                                retVals.add(retVal);
-                              } else {
-                                morePages.set(false);
-                                return Sequences.simple(retVals);
-                              }
-                            }
-
-                            return Sequences.simple(retVals);
-                          }
-                        }
-                    )
-                );
-              }
-
-              @Override
-              public void remove()
-              {
-                throw new UnsupportedOperationException();
-              }
-            };
-          }
-        }
+            }
+        )
     );
-
-    return Sequences.concat(sequenceOfSequences);
   }
 
   private Sequence<Object[]> executeTimeseries(

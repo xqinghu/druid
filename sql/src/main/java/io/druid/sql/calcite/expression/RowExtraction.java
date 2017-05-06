@@ -24,9 +24,11 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.ExtractionDimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ValueType;
 import io.druid.segment.filter.Filters;
+import io.druid.segment.virtual.ExtractionFnVirtualColumn;
 import io.druid.sql.calcite.rel.DruidQueryBuilder;
 import io.druid.sql.calcite.table.RowSignature;
 
@@ -82,19 +84,18 @@ public class RowExtraction
 
       return null;
     } else if (queryBuilder.getSelectProjection() != null) {
-      for (DimensionSpec dimensionSpec : queryBuilder.getSelectProjection().getDimensions()) {
-        if (dimensionSpec.getOutputName().equals(fieldName)) {
-          return RowExtraction.fromDimensionSpec(dimensionSpec);
-        }
-      }
+      // Can only back out RowExtraction from ExtractionFnVirtualColumn.
+      // Eventually, RowExtraction and VirtualColumn should be folded together somehow, making this less nasty.
+      final VirtualColumn virtualColumn = queryBuilder.getSelectProjection()
+                                                      .getVirtualColumns()
+                                                      .getVirtualColumn(fieldName);
 
-      for (String metricName : queryBuilder.getSelectProjection().getMetrics()) {
-        if (metricName.equals(fieldName)) {
-          return RowExtraction.of(metricName, null);
-        }
+      if (virtualColumn instanceof ExtractionFnVirtualColumn) {
+        final ExtractionFnVirtualColumn extractionFnVirtualColumn = (ExtractionFnVirtualColumn) virtualColumn;
+        return RowExtraction.of(extractionFnVirtualColumn.getFieldName(), extractionFnVirtualColumn.getExtractionFn());
+      } else {
+        return null;
       }
-
-      return null;
     } else {
       // No select projection or grouping.
       return RowExtraction.of(queryBuilder.getRowOrder().get(fieldNumber), null);

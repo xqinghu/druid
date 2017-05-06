@@ -24,6 +24,7 @@ import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.LegacySegmentSpec;
+import io.druid.segment.VirtualColumns;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Test;
@@ -38,7 +39,7 @@ public class ScanQuerySpecTest
   public void testSerializationLegacyString() throws Exception
   {
     String legacy =
-        "{\"queryType\":\"scan\",\"dataSource\":{\"type\":\"table\",\"name\":\"testing\"},"
+        "{\"queryType\":\"scan_\",\"dataSource\":{\"type\":\"table\",\"name\":\"testing\"},"
         + "\"intervals\":{\"type\":\"LegacySegmentSpec\",\"intervals\":[\"2011-01-12T00:00:00.000Z/2011-01-14T00:00:00.000Z\"]},"
         + "\"filter\":null,"
         + "\"columns\":[\"market\",\"quality\",\"index\"],"
@@ -46,8 +47,9 @@ public class ScanQuerySpecTest
         + "\"context\":null}";
 
     String current =
-        "{\"queryType\":\"scan\",\"dataSource\":{\"type\":\"table\",\"name\":\"testing\"},"
+        "{\"queryType\":\"scan_\",\"dataSource\":{\"type\":\"table\",\"name\":\"testing\"},"
         + "\"intervals\":{\"type\":\"LegacySegmentSpec\",\"intervals\":[\"2011-01-12T00:00:00.000Z/2011-01-14T00:00:00.000Z\"]},"
+        + "\"virtualColumns\":[],"
         + "\"resultFormat\":\"list\","
         + "\"batchSize\":20480,"
         + "\"limit\":3,"
@@ -59,6 +61,7 @@ public class ScanQuerySpecTest
     ScanQuery query = new ScanQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         new LegacySegmentSpec(new Interval("2011-01-12/2011-01-14")),
+        VirtualColumns.EMPTY,
         null,
         0,
         3,
