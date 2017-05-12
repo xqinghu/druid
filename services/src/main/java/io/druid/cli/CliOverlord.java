@@ -301,6 +301,7 @@ public class CliOverlord extends ServerRunnable
       // /status should not redirect, so add first
       root.addFilter(GuiceFilter.class, "/status/*", null);
 
+      // perform no-op authorization for these static resources
       root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/", null);
       root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/console.html", null);
       root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/old-console/*", null);

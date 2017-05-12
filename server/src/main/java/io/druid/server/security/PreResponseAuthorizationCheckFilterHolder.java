@@ -20,7 +20,10 @@
 package io.druid.server.security;
 
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.QueryInterruptedException;
+import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.jetty.ServletFilterHolder;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.eclipse.jetty.server.Response;
 
 import javax.inject.Inject;
@@ -49,13 +52,19 @@ public class PreResponseAuthorizationCheckFilterHolder implements ServletFilterH
   private static final Logger log = new Logger(PreResponseAuthorizationCheckFilterHolder.class);
 
   private final AuthConfig authConfig;
+  private final ObjectMapper jsonMapper;
+  private final DruidServerMetadata serverMetadata;
 
   @Inject
   public PreResponseAuthorizationCheckFilterHolder(
-      AuthConfig authConfig
+      AuthConfig authConfig,
+      ObjectMapper jsonMapper,
+      DruidServerMetadata serverMetadata
   )
   {
     this.authConfig = authConfig;
+    this.jsonMapper = jsonMapper;
+    this.serverMetadata = serverMetadata;
   }
 
   @Override
@@ -75,22 +84,29 @@ public class PreResponseAuthorizationCheckFilterHolder implements ServletFilterH
       ) throws IOException, ServletException
       {
         if (authConfig.isEnabled()) {
+          QueryInterruptedException unauthorizedError = new QueryInterruptedException(
+              QueryInterruptedException.UNAUTHORIZED,
+              null,
+              null,
+              serverMetadata.getHost()
+          );
+
           Boolean authInfoChecked = null;
           final HttpServletResponse response = (HttpServletResponse) servletResponse;
 
           // make sure the original request isn't trying to fake the auth token check
           authInfoChecked = (Boolean) servletRequest.getAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED);
           if (authInfoChecked != null) {
-            response.sendError(Response.SC_FORBIDDEN, "Authorization failure.");
+            sendJsonError(response, Response.SC_FORBIDDEN, jsonMapper.writeValueAsString(unauthorizedError));
             return;
           }
 
           // Since this is the last filter in the chain, some previous authentication filter
           // should have placed an auth token in the request.
-          // If not, this is an unauthenticated request and should be denied.
+          // If not, send an auth challenge.
           if (servletRequest.getAttribute(AuthConfig.DRUID_AUTH_TOKEN) == null) {
             response.setHeader("WWW-Authenticate", "Basic");
-            response.sendError(Response.SC_UNAUTHORIZED, "Unauthorized.");
+            sendJsonError(response, Response.SC_UNAUTHORIZED, jsonMapper.writeValueAsString(unauthorizedError));
             return;
           }
 
@@ -104,15 +120,12 @@ public class PreResponseAuthorizationCheckFilterHolder implements ServletFilterH
           // DRUID_AUTH_TOKEN_CHECKED (i.e. performed an authorization check). If this is not set,
           // a 403 error will be returned instead of the response.
           authInfoChecked = (Boolean) servletRequest.getAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED);
-          //authInfoChecked = true;
-          // disabled for now, some endpoints like overlord console.html have no auth checks currently
           if (authInfoChecked == null) {
             log.error(
                 "Request did not have an authorization check performed: %s",
                 ((HttpServletRequest) servletRequest).getRequestURI()
             );
-            //out.write(wrapper.getData());
-            response.sendError(Response.SC_FORBIDDEN, "Authorization failure.");
+            sendJsonError(response, Response.SC_FORBIDDEN, jsonMapper.writeValueAsString(unauthorizedError));
           } else {
             out.write(wrapper.getData());
           }
@@ -129,6 +142,18 @@ public class PreResponseAuthorizationCheckFilterHolder implements ServletFilterH
       }
     }
     return new PreResponseAuthorizationCheckFilter();
+  }
+
+  private static void sendJsonError(HttpServletResponse resp, int error, String errorJson)
+  {
+    resp.setStatus(error);
+    resp.setContentType("application/json");
+    resp.setCharacterEncoding("UTF-8");
+    try {
+      resp.getWriter().write(errorJson);
+    } catch (IOException ioe) {
+      log.error("WTF? Can't get writer from HTTP response.");
+    }
   }
 
   @Override

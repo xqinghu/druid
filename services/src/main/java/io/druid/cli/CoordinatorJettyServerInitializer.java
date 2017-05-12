@@ -28,6 +28,7 @@ import io.druid.server.http.RedirectFilter;
 import io.druid.server.initialization.jetty.JettyServerInitUtils;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.security.AuthenticationUtils;
+import io.druid.server.security.StaticResourceFilter;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
@@ -93,6 +94,10 @@ class CoordinatorJettyServerInitializer implements JettyServerInitializer
 
     // /status should not redirect, so add first
     root.addFilter(GuiceFilter.class, "/status/*", null);
+
+    // perform no-op authorization for these static resources
+    root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/", null);
+    root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/favicon.ico", null);
 
     // redirect anything other than status to the current lead
     root.addFilter(new FilterHolder(injector.getInstance(RedirectFilter.class)), "/*", null);
