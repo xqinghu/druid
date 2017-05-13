@@ -82,7 +82,7 @@ public class AuthorizationUtils
   {
     Boolean authInfoChecked = (Boolean) request.getAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED);
     if (authInfoChecked != null) {
-      throw new ISE("Request is already authorized.");
+      //throw new ISE("Request is already authorized.");
     }
 
     final AuthorizationInfo authInfo = (AuthorizationInfo) request.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
@@ -130,7 +130,7 @@ public class AuthorizationUtils
   {
     Boolean authInfoChecked = (Boolean) request.getAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED);
     if (authInfoChecked != null) {
-      throw new ISE("Request is already authorized.");
+      //throw new ISE("Request is already authorized.");
     }
 
     final AuthorizationInfo authInfo = (AuthorizationInfo) request.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
@@ -174,7 +174,7 @@ public class AuthorizationUtils
   {
     Boolean authInfoChecked = (Boolean) request.getAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED);
     if (authInfoChecked != null) {
-      throw new ISE("Request is already authorized.");
+      //throw new ISE("Request is already authorized.");
     }
 
     final AuthorizationInfo authInfo = (AuthorizationInfo) request.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);

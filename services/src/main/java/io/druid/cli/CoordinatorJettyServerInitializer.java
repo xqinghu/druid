@@ -98,6 +98,16 @@ class CoordinatorJettyServerInitializer implements JettyServerInitializer
     // perform no-op authorization for these static resources
     root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/", null);
     root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/favicon.ico", null);
+    root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/css/*", null);
+    root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/druid.js", null);
+    root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/druid.css", null);
+    root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/pages/*", null);
+    root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/druid/*", null);
+    root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/fonts/*", null);
+    root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/old-console/*", null);
+    root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/coordinator/*", null);
+    root.addFilter(new FilterHolder(new StaticResourceFilter(injector)), "/overlord/*", null);
+
 
     // redirect anything other than status to the current lead
     root.addFilter(new FilterHolder(injector.getInstance(RedirectFilter.class)), "/*", null);
