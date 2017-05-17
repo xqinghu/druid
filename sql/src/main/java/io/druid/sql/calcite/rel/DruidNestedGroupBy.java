@@ -163,6 +163,12 @@ public class DruidNestedGroupBy extends DruidRel<DruidNestedGroupBy>
   }
 
   @Override
+  public List<String> getDatasourceNames()
+  {
+    return sourceRel.getDatasourceNames();
+  }
+
+  @Override
   public RelWriter explainTerms(RelWriter pw)
   {
     return pw

@@ -25,6 +25,13 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
+import io.druid.server.security.Access;
+import io.druid.server.security.Action;
+import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthorizationUtils;
+import io.druid.server.security.Resource;
+import io.druid.server.security.ResourceAction;
+import io.druid.server.security.ResourceType;
 import io.druid.sql.calcite.rel.DruidConvention;
 import io.druid.sql.calcite.rel.DruidRel;
 import org.apache.calcite.DataContext;
@@ -40,9 +47,12 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlExplain;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.Planner;
@@ -50,6 +60,7 @@ import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 import org.apache.calcite.util.Pair;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
@@ -67,6 +78,15 @@ public class DruidPlanner implements Closeable
 
   public PlannerResult plan(final String sql) throws SqlParseException, ValidationException, RelConversionException
   {
+    return plan(sql, null, null);
+  }
+
+  public PlannerResult plan(
+      final String sql,
+      final HttpServletRequest request,
+      final AuthConfig authConfig
+  ) throws SqlParseException, ValidationException, RelConversionException, SecurityException
+  {
     SqlExplain explain = null;
     SqlNode parsed = planner.parse(sql);
     if (parsed.getKind() == SqlKind.EXPLAIN) {
@@ -77,9 +97,17 @@ public class DruidPlanner implements Closeable
     final RelRoot root = planner.rel(validated);
 
     try {
-      return planWithDruidConvention(explain, root);
+      return planWithDruidConvention(explain, root, request, authConfig);
     }
     catch (RelOptPlanner.CannotPlanException e) {
+      // Security check for BINDABLE convention
+      if (authConfig.isEnabled()) {
+        Access accessResult = authorizeSqlnode(validated, request);
+        if (!accessResult.isAllowed()) {
+          throw new SecurityException(accessResult.toString());
+        }
+      }
+
       // Try again with BINDABLE convention. Used for querying Values, metadata tables, and fallback.
       try {
         return planWithBindableConvention(explain, root);
@@ -104,8 +132,10 @@ public class DruidPlanner implements Closeable
 
   private PlannerResult planWithDruidConvention(
       final SqlExplain explain,
-      final RelRoot root
-  ) throws RelConversionException
+      final RelRoot root,
+      final HttpServletRequest request,
+      final AuthConfig authConfig
+  ) throws RelConversionException, SecurityException
   {
     final DruidRel<?> druidRel = (DruidRel<?>) planner.transform(
         Rules.DRUID_CONVENTION_RULES,
@@ -114,6 +144,19 @@ public class DruidPlanner implements Closeable
                .plus(root.collation),
         root.rel
     );
+
+    if (authConfig != null && authConfig.isEnabled()) {
+      List<String> datasourceNames = druidRel.getDatasourceNames();
+      Access authResult = AuthorizationUtils.authorizeAllResourceActions(
+          request,
+          datasourceNames,
+          AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
+      );
+
+      if (!authResult.isAllowed()) {
+        throw new SecurityException(authResult.toString());
+      }
+    }
 
     if (explain != null) {
       return planExplanation(druidRel, explain);
@@ -146,6 +189,30 @@ public class DruidPlanner implements Closeable
         }
       };
       return new PlannerResult(resultsSupplier, root.validatedRowType);
+    }
+  }
+
+  private Access authorizeSqlnode(SqlNode sqlNode, HttpServletRequest req) {
+    if (sqlNode instanceof SqlSelect) {
+      return authorizeSqlnode(((SqlSelect) sqlNode).getFrom(), req);
+    } else if (sqlNode instanceof SqlBasicCall) {
+      SqlNode[] operands = ((SqlBasicCall) sqlNode).operands;
+      SqlIdentifier dataSourceIdentifier = (SqlIdentifier) operands[0];
+      ImmutableList<String> components = dataSourceIdentifier.names;
+
+      String datasourceName = components.get(0);
+      if (datasourceName.equals("druid")) {
+        datasourceName = components.get(1);
+      }
+
+      ResourceAction resourceAction = new ResourceAction(
+          new Resource(datasourceName, ResourceType.DATASOURCE),
+          Action.READ
+      );
+
+      return AuthorizationUtils.authorizeResourceAction(req, resourceAction);
+    } else {
+      return new Access(false, "Can't authorize non-select bindable convention query plans.");
     }
   }
 

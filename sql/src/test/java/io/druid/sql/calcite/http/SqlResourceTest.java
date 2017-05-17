@@ -77,7 +77,7 @@ public class SqlResourceTest
         CalciteTests.createMockSchema(walker, plannerConfig)
     );
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
-    resource = new SqlResource(JSON_MAPPER, new PlannerFactory(rootSchema, walker, operatorTable, plannerConfig));
+    resource = new SqlResource(JSON_MAPPER, new PlannerFactory(rootSchema, walker, operatorTable, plannerConfig), null);
   }
 
   @After
@@ -228,7 +228,7 @@ public class SqlResourceTest
   // Returns either an error or a result.
   private Pair<QueryInterruptedException, List<Map<String, Object>>> doPost(final SqlQuery query) throws Exception
   {
-    final Response response = resource.doPost(query);
+    final Response response = resource.doPost(query, null);
     if (response.getStatus() == 200) {
       final StreamingOutput output = (StreamingOutput) response.getEntity();
       final ByteArrayOutputStream baos = new ByteArrayOutputStream();

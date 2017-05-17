@@ -88,6 +88,7 @@ public class PreResponseAuthorizationCheckFilterHolder implements ServletFilterH
               null,
               DruidNode.getDefaultHost()
           );
+          unauthorizedError.setStackTrace(new StackTraceElement[0]);
           OutputStream out = servletResponse.getOutputStream();
 
           Boolean authInfoChecked = null;
@@ -118,7 +119,8 @@ public class PreResponseAuthorizationCheckFilterHolder implements ServletFilterH
           // DRUID_AUTH_TOKEN_CHECKED (i.e. performed an authorization check). If this is not set,
           // a 403 error will be returned instead of the response.
           authInfoChecked = (Boolean) servletRequest.getAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED);
-          if (authInfoChecked == null) {
+          // TODO: need to check if there was some other error already
+          if (authInfoChecked == null && !errorOverridesMissingAuth(response.getStatus())) {
             log.error(
                 "Request did not have an authorization check performed: %s",
                 ((HttpServletRequest) servletRequest).getRequestURI()
@@ -140,6 +142,10 @@ public class PreResponseAuthorizationCheckFilterHolder implements ServletFilterH
       }
     }
     return new PreResponseAuthorizationCheckFilter();
+  }
+
+  private static boolean errorOverridesMissingAuth(int status) {
+    return status == Response.SC_INTERNAL_SERVER_ERROR;
   }
 
   private static void sendJsonError(HttpServletResponse resp, int error, String errorJson, OutputStream outputStream)
