@@ -77,10 +77,13 @@ public class NamespaceLookupExtractorFactoryTest
               Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance
           )
           {
-            if ("io.druid.server.lookup.namespace.cache.NamespaceExtractionCacheManager".equals(valueId)) {
+            if (NamespaceExtractionCacheManager.class.getName().equals(valueId)) {
               return cacheManager;
+            } else if (ObjectMapper.class.getName().equals(valueId)) {
+              return mapper;
+            } else {
+              return null;
             }
-            return null;
           }
         }
     );
