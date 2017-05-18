@@ -116,9 +116,12 @@ public class DruidAvaticaHandlerTest
     );
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     final DruidAvaticaHandler handler = new DruidAvaticaHandler(
-        new DruidMeta(new PlannerFactory(rootSchema, walker, operatorTable, plannerConfig), AVATICA_CONFIG),
+        new DruidMeta(new PlannerFactory(rootSchema, walker, operatorTable, plannerConfig), AVATICA_CONFIG, null, null),
         new DruidNode("dummy", "dummy", 1),
-        new AvaticaMonitor()
+        new AvaticaMonitor(),
+        null,
+        null,
+        null
     );
     final int port = new Random().nextInt(9999) + 10000;
     server = new Server(new InetSocketAddress("127.0.0.1", port));
@@ -129,7 +132,7 @@ public class DruidAvaticaHandlerTest
         port,
         DruidAvaticaHandler.AVATICA_PATH
     );
-    client = DriverManager.getConnection(url);
+    client = DriverManager.getConnection(url, "admin", "druid");
 
     final Properties propertiesLosAngeles = new Properties();
     propertiesLosAngeles.setProperty("sqlTimeZone", "America/Los_Angeles");

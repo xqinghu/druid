@@ -19,7 +19,6 @@
 
 package io.druid.server.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import io.druid.server.initialization.jetty.ServletFilterHolder;
@@ -147,7 +146,6 @@ public class BasicAuthenticationServletFilterHolder implements ServletFilterHold
         final RoleBasedAuthorizationInfo authInfo = new RoleBasedAuthorizationInfo(
             user,
             dbConnector,
-            injector.getInstance(ObjectMapper.class),
             authConfig
         );
         servletRequest.setAttribute(AuthConfig.DRUID_AUTH_TOKEN, authInfo);

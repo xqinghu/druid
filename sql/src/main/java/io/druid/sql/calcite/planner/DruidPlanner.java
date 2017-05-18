@@ -23,11 +23,13 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceAction;
@@ -78,12 +80,13 @@ public class DruidPlanner implements Closeable
 
   public PlannerResult plan(final String sql) throws SqlParseException, ValidationException, RelConversionException
   {
-    return plan(sql, null, null);
+    return plan(sql, null, null, null);
   }
 
   public PlannerResult plan(
       final String sql,
       final HttpServletRequest request,
+      final AuthorizationInfo authorizer,
       final AuthConfig authConfig
   ) throws SqlParseException, ValidationException, RelConversionException, SecurityException
   {
@@ -97,12 +100,12 @@ public class DruidPlanner implements Closeable
     final RelRoot root = planner.rel(validated);
 
     try {
-      return planWithDruidConvention(explain, root, request, authConfig);
+      return planWithDruidConvention(explain, root, request, authorizer, authConfig);
     }
     catch (RelOptPlanner.CannotPlanException e) {
       // Security check for BINDABLE convention
       if (authConfig.isEnabled()) {
-        Access accessResult = authorizeSqlnode(validated, request);
+        Access accessResult = authorizeSqlnode(validated, request, authorizer);
         if (!accessResult.isAllowed()) {
           throw new SecurityException(accessResult.toString());
         }
@@ -134,6 +137,7 @@ public class DruidPlanner implements Closeable
       final SqlExplain explain,
       final RelRoot root,
       final HttpServletRequest request,
+      final AuthorizationInfo authorizer,
       final AuthConfig authConfig
   ) throws RelConversionException, SecurityException
   {
@@ -147,11 +151,20 @@ public class DruidPlanner implements Closeable
 
     if (authConfig != null && authConfig.isEnabled()) {
       List<String> datasourceNames = druidRel.getDatasourceNames();
-      Access authResult = AuthorizationUtils.authorizeAllResourceActions(
-          request,
-          datasourceNames,
-          AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
-      );
+      Access authResult;
+      if (request != null) {
+        authResult = AuthorizationUtils.authorizeAllResourceActions(
+            request,
+            datasourceNames,
+            AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
+        );
+      } else {
+        authResult = AuthorizationUtils.authorizeAllResourceActions(
+            datasourceNames,
+            AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR,
+            authorizer
+        );
+      }
 
       if (!authResult.isAllowed()) {
         throw new SecurityException(authResult.toString());
@@ -192,9 +205,9 @@ public class DruidPlanner implements Closeable
     }
   }
 
-  private Access authorizeSqlnode(SqlNode sqlNode, HttpServletRequest req) {
+  private Access authorizeSqlnode(SqlNode sqlNode, HttpServletRequest req, final AuthorizationInfo authorizer) {
     if (sqlNode instanceof SqlSelect) {
-      return authorizeSqlnode(((SqlSelect) sqlNode).getFrom(), req);
+      return authorizeSqlnode(((SqlSelect) sqlNode).getFrom(), req, authorizer);
     } else if (sqlNode instanceof SqlBasicCall) {
       SqlNode[] operands = ((SqlBasicCall) sqlNode).operands;
       SqlIdentifier dataSourceIdentifier = (SqlIdentifier) operands[0];
@@ -210,7 +223,11 @@ public class DruidPlanner implements Closeable
           Action.READ
       );
 
-      return AuthorizationUtils.authorizeResourceAction(req, resourceAction);
+      if (req != null) {
+        return AuthorizationUtils.authorizeResourceAction(req, resourceAction);
+      } else {
+        return AuthorizationUtils.authorizeAllResourceActions(authorizer, Lists.newArrayList(resourceAction));
+      }
     } else {
       return new Access(false, "Can't authorize non-select bindable convention query plans.");
     }

@@ -19,7 +19,6 @@
 
 package io.druid.server.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.security.db.SecurityStorageConnector;
 
@@ -33,7 +32,6 @@ public class RoleBasedAuthorizationInfo implements AuthorizationInfo
   private static final Logger log = new Logger(RoleBasedAuthorizationInfo.class);
 
   private final SecurityStorageConnector dbConnector;
-  private final ObjectMapper mapper;
   private final String authenticationName;
   private final AuthConfig authConfig;
 
@@ -44,13 +42,11 @@ public class RoleBasedAuthorizationInfo implements AuthorizationInfo
   public RoleBasedAuthorizationInfo(
       String authenticationName,
       SecurityStorageConnector dbConnector,
-      ObjectMapper mapper,
       AuthConfig authConfig
   )
   {
     this.authenticationName = authenticationName;
     this.dbConnector = dbConnector;
-    this.mapper = mapper;
     this.authConfig = authConfig;
   }
 

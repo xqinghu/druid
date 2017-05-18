@@ -19,9 +19,12 @@
 
 package io.druid.sql.avatica;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import io.druid.guice.annotations.Self;
 import io.druid.server.DruidNode;
+import io.druid.server.security.AuthConfig;
+import io.druid.server.security.db.SecurityStorageConnector;
 import org.apache.calcite.avatica.remote.LocalService;
 import org.apache.calcite.avatica.remote.Service;
 import org.apache.calcite.avatica.server.AvaticaJsonHandler;
@@ -41,8 +44,11 @@ public class DruidAvaticaHandler extends AvaticaJsonHandler
   public DruidAvaticaHandler(
       final DruidMeta druidMeta,
       @Self final DruidNode druidNode,
-      final AvaticaMonitor avaticaMonitor
-  ) throws InstantiationException, IllegalAccessException, InvocationTargetException
+      final AvaticaMonitor avaticaMonitor,
+      final AuthConfig authConfig,
+      final ObjectMapper jsonMapper,
+      final SecurityStorageConnector dbConnector
+      ) throws InstantiationException, IllegalAccessException, InvocationTargetException
   {
     super(new LocalService(druidMeta), avaticaMonitor);
     setServerRpcMetadata(new Service.RpcMetadataResponse(druidNode.getHostAndPort()));

@@ -151,6 +151,62 @@ public class AuthorizationUtils
     return ACCESS_OK;
   }
 
+  /**
+   * Check a list of caller-defined resources, after converting them into a list of resource-actions
+   * using a caller provided function.
+   *
+   * If one of the resource-actions fails the authorization check, this method returns the failed
+   * Access object from the check.
+   *
+   * Otherwise, return ACCESS_OK if all resource-actions were successfully authorized.
+   *
+   * @param resources List of resources
+   * @param raGenerator Function that creates a resource-action from a resource
+   * @param <ResType> Type of the resources in the resource list
+   * @return ACCESS_OK or the Access object from the first failed check
+   */
+  public static <ResType> Access authorizeAllResourceActions(
+      final Collection<ResType> resources,
+      final Function<? super ResType, ResourceAction> raGenerator,
+      final AuthorizationInfo authorizationInfo
+  )
+  {
+    for (ResType resource : resources) {
+      final ResourceAction resourceAction = raGenerator.apply(resource);
+      final Access access = authorizationInfo.isAuthorized(resourceAction.getResource(), resourceAction.getAction());
+      if (!access.isAllowed()) {
+        return access;
+      }
+    }
+
+    return ACCESS_OK;
+  }
+
+  /**
+   * Check a list of resource-actions using the AuthorizationInfo from the request.
+   *
+   * If one of the resource-actions fails the authorization check, this method returns the failed
+   * Access object from the check.
+   *
+   * Otherwise, return ACCESS_OK if all resource-actions were successfully authorized.
+   *
+   * @param resourceActions A list of resource-actions to authorize
+   * @return ACCESS_OK or the Access object from the first failed check
+   */
+  public static Access authorizeAllResourceActions(
+      final AuthorizationInfo authorizationInfo,
+      final List<ResourceAction> resourceActions
+  )
+  {
+    for (ResourceAction resourceAction : resourceActions) {
+      final Access access = authorizationInfo.isAuthorized(resourceAction.getResource(), resourceAction.getAction());
+      if (!access.isAllowed()) {
+        return access;
+      }
+    }
+
+    return ACCESS_OK;
+  }
 
   /**
    * Filter a list of resource-actions using the request's AuthorizationInfo, returning a new list of

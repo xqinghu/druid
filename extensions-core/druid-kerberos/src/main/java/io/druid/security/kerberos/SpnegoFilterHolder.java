@@ -168,7 +168,6 @@ public class SpnegoFilterHolder implements ServletFilterHolder
           final RoleBasedAuthorizationInfo authInfo = new RoleBasedAuthorizationInfo(
               clientPrincipal,
               dbConnector,
-              jsonMapper,
               authConfig
           );
           request.setAttribute(AuthConfig.DRUID_AUTH_TOKEN, authInfo);
