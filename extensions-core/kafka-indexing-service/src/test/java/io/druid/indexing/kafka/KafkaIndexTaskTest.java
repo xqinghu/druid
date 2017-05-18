@@ -1391,6 +1391,7 @@ public class KafkaIndexTaskTest
         tuningConfig,
         ioConfig,
         null,
+        null,
         null
     );
   }

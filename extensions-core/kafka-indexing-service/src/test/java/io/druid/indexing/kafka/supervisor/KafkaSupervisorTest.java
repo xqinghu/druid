@@ -67,6 +67,7 @@ import io.druid.segment.indexing.granularity.UniformGranularitySpec;
 import io.druid.segment.realtime.FireDepartment;
 import io.druid.server.metrics.DruidMonitorSchedulerConfig;
 import io.druid.server.metrics.NoopServiceEmitter;
+import io.druid.server.security.AuthConfig;
 import org.apache.curator.test.TestingCluster;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -1754,7 +1755,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
             taskClientFactory,
             objectMapper,
             new NoopServiceEmitter(),
-            new DruidMonitorSchedulerConfig()
+            new DruidMonitorSchedulerConfig(),
+            new AuthConfig()
         )
     );
   }
@@ -1818,7 +1820,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
             false
         ),
         ImmutableMap.<String, Object>of(),
-        null
+        null,
+        new AuthConfig()
     );
   }
 
@@ -1851,7 +1854,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
         KafkaSupervisorSpec spec
     )
     {
-      super(taskStorage, taskMaster, indexerMetadataStorageCoordinator, taskClientFactory, mapper, spec);
+      super(taskStorage, taskMaster, indexerMetadataStorageCoordinator, taskClientFactory, mapper, spec, new AuthConfig());
     }
 
     @Override

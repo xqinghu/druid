@@ -35,6 +35,7 @@ import io.druid.indexing.overlord.supervisor.Supervisor;
 import io.druid.indexing.overlord.supervisor.SupervisorSpec;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.server.metrics.DruidMonitorSchedulerConfig;
+import io.druid.server.security.AuthConfig;
 
 import java.util.List;
 import java.util.Map;
@@ -53,6 +54,7 @@ public class KafkaSupervisorSpec implements SupervisorSpec
   private final ObjectMapper mapper;
   private final ServiceEmitter emitter;
   private final DruidMonitorSchedulerConfig monitorSchedulerConfig;
+  private final AuthConfig authConfig;
 
   @JsonCreator
   public KafkaSupervisorSpec(
@@ -66,7 +68,8 @@ public class KafkaSupervisorSpec implements SupervisorSpec
       @JacksonInject KafkaIndexTaskClientFactory kafkaIndexTaskClientFactory,
       @JacksonInject @Json ObjectMapper mapper,
       @JacksonInject ServiceEmitter emitter,
-      @JacksonInject DruidMonitorSchedulerConfig monitorSchedulerConfig
+      @JacksonInject DruidMonitorSchedulerConfig monitorSchedulerConfig,
+      @JacksonInject AuthConfig authConfig
       )
   {
     this.dataSchema = Preconditions.checkNotNull(dataSchema, "dataSchema");
@@ -99,6 +102,7 @@ public class KafkaSupervisorSpec implements SupervisorSpec
     this.mapper = mapper;
     this.emitter = emitter;
     this.monitorSchedulerConfig = monitorSchedulerConfig;
+    this.authConfig = authConfig;
   }
 
   @JsonProperty
@@ -141,6 +145,11 @@ public class KafkaSupervisorSpec implements SupervisorSpec
     return monitorSchedulerConfig;
   }
 
+  public AuthConfig getAuthConfig()
+  {
+    return authConfig;
+  }
+
   @Override
   public Supervisor createSupervisor()
   {
@@ -150,7 +159,8 @@ public class KafkaSupervisorSpec implements SupervisorSpec
         indexerMetadataStorageCoordinator,
         kafkaIndexTaskClientFactory,
         mapper,
-        this
+        this,
+        authConfig
     );
   }
 
