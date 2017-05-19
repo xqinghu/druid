@@ -23,17 +23,13 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.server.security.Access;
-import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
 import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.AuthorizationUtils;
-import io.druid.server.security.Resource;
-import io.druid.server.security.ResourceAction;
-import io.druid.server.security.ResourceType;
 import io.druid.sql.calcite.rel.DruidConvention;
 import io.druid.sql.calcite.rel.DruidRel;
 import org.apache.calcite.DataContext;
@@ -43,18 +39,17 @@ import org.apache.calcite.interpreter.BindableRel;
 import org.apache.calcite.interpreter.Bindables;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.RelVisitor;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlExplain;
-import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.Planner;
@@ -66,6 +61,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class DruidPlanner implements Closeable
 {
@@ -103,17 +99,9 @@ public class DruidPlanner implements Closeable
       return planWithDruidConvention(explain, root, request, authorizer, authConfig);
     }
     catch (RelOptPlanner.CannotPlanException e) {
-      // Security check for BINDABLE convention
-      if (authConfig.isEnabled()) {
-        Access accessResult = authorizeSqlnode(validated, request, authorizer);
-        if (!accessResult.isAllowed()) {
-          throw new SecurityException(accessResult.toString());
-        }
-      }
-
       // Try again with BINDABLE convention. Used for querying Values, metadata tables, and fallback.
       try {
-        return planWithBindableConvention(explain, root);
+        return planWithBindableConvention(explain, root, request, authorizer, authConfig);
       }
       catch (Exception e2) {
         e.addSuppressed(e2);
@@ -205,37 +193,49 @@ public class DruidPlanner implements Closeable
     }
   }
 
-  private Access authorizeSqlnode(SqlNode sqlNode, HttpServletRequest req, final AuthorizationInfo authorizer) {
-    if (sqlNode instanceof SqlSelect) {
-      return authorizeSqlnode(((SqlSelect) sqlNode).getFrom(), req, authorizer);
-    } else if (sqlNode instanceof SqlBasicCall) {
-      SqlNode[] operands = ((SqlBasicCall) sqlNode).operands;
-      SqlIdentifier dataSourceIdentifier = (SqlIdentifier) operands[0];
-      ImmutableList<String> components = dataSourceIdentifier.names;
-
-      String datasourceName = components.get(0);
-      if (datasourceName.equals("druid")) {
-        datasourceName = components.get(1);
-      }
-
-      ResourceAction resourceAction = new ResourceAction(
-          new Resource(datasourceName, ResourceType.DATASOURCE),
-          Action.READ
+  private Access authorizeBindableRel(BindableRel rel, HttpServletRequest req, final AuthorizationInfo authorizer)
+  {
+    Set<String> datasourceNames = Sets.newHashSet();
+    rel.childrenAccept(
+        new RelVisitor()
+        {
+          @Override
+          public void visit(RelNode node, int ordinal, RelNode parent)
+          {
+            if (node instanceof DruidRel) {
+              datasourceNames.addAll(((DruidRel) node).getDatasourceNames());
+            }
+            if (node instanceof Bindables.BindableTableScan) {
+              Bindables.BindableTableScan bts = (Bindables.BindableTableScan) node;
+              RelOptTable table = bts.getTable();
+              String tableName = table.getQualifiedName().get(0);
+              datasourceNames.add(tableName);
+            }
+            node.childrenAccept(this);
+          }
+        }
+    );
+    if (req != null) {
+      return AuthorizationUtils.authorizeAllResourceActions(
+          req,
+          datasourceNames,
+          AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
       );
-
-      if (req != null) {
-        return AuthorizationUtils.authorizeResourceAction(req, resourceAction);
-      } else {
-        return AuthorizationUtils.authorizeAllResourceActions(authorizer, Lists.newArrayList(resourceAction));
-      }
     } else {
-      return new Access(false, "Can't authorize non-select bindable convention query plans.");
+      return AuthorizationUtils.authorizeAllResourceActions(
+          datasourceNames,
+          AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR,
+          authorizer
+      );
     }
   }
 
   private PlannerResult planWithBindableConvention(
       final SqlExplain explain,
-      final RelRoot root
+      final RelRoot root,
+      final HttpServletRequest request,
+      final AuthorizationInfo authorizer,
+      final AuthConfig authConfig
   ) throws RelConversionException
   {
     BindableRel bindableRel = (BindableRel) planner.transform(
@@ -260,6 +260,13 @@ public class DruidPlanner implements Closeable
           projects,
           root.validatedRowType
       );
+    }
+    
+    if (authConfig != null && authConfig.isEnabled()) {
+      Access accessResult = authorizeBindableRel(bindableRel, request, authorizer);
+      if (!accessResult.isAllowed()) {
+        throw new SecurityException(accessResult.toString());
+      }
     }
 
     if (explain != null) {
