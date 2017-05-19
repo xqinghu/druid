@@ -30,6 +30,7 @@ import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
+import io.druid.client.DirectDruidClient;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
 import io.druid.java.util.common.guava.Sequence;
@@ -178,6 +179,8 @@ public class QueryResource implements QueryCountStatsProvider
 
     final String currThreadName = Thread.currentThread().getName();
     try {
+      final Map<String, Object> responseContext = new MapMaker().makeMap();
+
       query = context.getObjectMapper().readValue(in, Query.class);
       queryId = query.getId();
       if (queryId == null) {
@@ -185,6 +188,13 @@ public class QueryResource implements QueryCountStatsProvider
         query = query.withId(queryId);
       }
       query = QueryContexts.withDefaultTimeout(query, config.getDefaultQueryTimeout());
+      query = QueryContexts.withMaxScatterGatherBytes(query, config.getMaxScatterGatherBytes());
+
+      responseContext.put(
+          DirectDruidClient.QUERY_FAIL_TIME,
+          System.currentTimeMillis() + QueryContexts.getTimeout(query)
+      );
+      responseContext.put(DirectDruidClient.QUERY_TOTAL_BYTES_GATHERED, new AtomicLong());
 
       toolChest = warehouse.getToolChest(query);
 
@@ -214,7 +224,6 @@ public class QueryResource implements QueryCountStatsProvider
         );
       }
 
-      final Map<String, Object> responseContext = new MapMaker().makeMap();
       final Sequence res = QueryPlus.wrap(query).run(texasRanger, responseContext);
 
       if (prevEtag != null && prevEtag.equals(responseContext.get(HDR_ETAG))) {
@@ -316,6 +325,9 @@ public class QueryResource implements QueryCountStatsProvider
           builder.header(HDR_ETAG, responseContext.get(HDR_ETAG));
           responseContext.remove(HDR_ETAG);
         }
+
+        responseContext.remove(DirectDruidClient.QUERY_FAIL_TIME);
+        responseContext.remove(DirectDruidClient.QUERY_TOTAL_BYTES_GATHERED);
 
         //Limit the response-context header, see https://github.com/druid-io/druid/issues/2331
         //Note that Response.ResponseBuilder.header(String key,Object value).build() calls value.toString()
