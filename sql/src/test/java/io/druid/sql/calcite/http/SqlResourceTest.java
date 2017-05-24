@@ -28,6 +28,8 @@ import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.ResourceLimitExceededException;
+import io.druid.server.initialization.ServerConfig;
+import io.druid.server.security.AuthConfig;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -77,7 +79,12 @@ public class SqlResourceTest
         CalciteTests.createMockSchema(walker, plannerConfig)
     );
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
-    resource = new SqlResource(JSON_MAPPER, new PlannerFactory(rootSchema, walker, operatorTable, plannerConfig), null);
+
+    resource = new SqlResource(
+        JSON_MAPPER,
+        new PlannerFactory(rootSchema, walker, operatorTable, plannerConfig, new ServerConfig()),
+        new AuthConfig()
+    );
   }
 
   @After
