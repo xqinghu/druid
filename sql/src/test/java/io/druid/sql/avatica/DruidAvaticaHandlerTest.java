@@ -32,7 +32,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.java.util.common.Pair;
 import io.druid.server.DruidNode;
-import io.druid.server.initialization.ServerConfig;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -117,12 +116,7 @@ public class DruidAvaticaHandlerTest
     );
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     final DruidAvaticaHandler handler = new DruidAvaticaHandler(
-        new DruidMeta(
-            new PlannerFactory(rootSchema, walker, operatorTable, plannerConfig, new ServerConfig()),
-            AVATICA_CONFIG,
-            null,
-            null
-        ),
+        new DruidMeta(new PlannerFactory(rootSchema, walker, operatorTable, plannerConfig), AVATICA_CONFIG, null, null),
         new DruidNode("dummy", "dummy", 1),
         new AvaticaMonitor(),
         null,

@@ -76,7 +76,6 @@ import io.druid.segment.IndexBuilder;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndexSchema;
-import io.druid.server.initialization.ServerConfig;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.expression.SqlExtractionOperator;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
@@ -381,8 +380,7 @@ public class CalciteTests
         walker,
         new TestServerInventoryView(walker.getSegments()),
         plannerConfig,
-        viewManager,
-        new ServerConfig()
+        viewManager
     );
 
     schema.start();
