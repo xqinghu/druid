@@ -49,6 +49,7 @@ import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
+import io.druid.query.expression.LookupExprMacro;
 import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryConfig;
@@ -82,7 +83,7 @@ import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
-import io.druid.sql.calcite.expression.SqlExtractionOperator;
+import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.schema.DruidSchema;
@@ -112,7 +113,9 @@ public class CalciteTests
   public static final String DATASOURCE2 = "foo2";
 
   private static final String TIMESTAMP_COLUMN = "t";
-  private static final Supplier<SelectQueryConfig> selectConfigSupplier = Suppliers.ofInstance(new SelectQueryConfig(true));
+  private static final Supplier<SelectQueryConfig> SELECT_CONFIG_SUPPLIER = Suppliers.ofInstance(
+      new SelectQueryConfig(true)
+  );
 
   private static final Injector INJECTOR = Guice.createInjector(
       new Module()
@@ -191,9 +194,9 @@ public class CalciteTests
                   new SelectQueryQueryToolChest(
                       TestHelper.getJsonMapper(),
                       QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator(),
-                      selectConfigSupplier
+                      SELECT_CONFIG_SUPPLIER
                   ),
-                  new SelectQueryEngine(selectConfigSupplier),
+                  new SelectQueryEngine(SELECT_CONFIG_SUPPLIER),
                   QueryRunnerTestHelper.NOOP_QUERYWATCHER
               )
           )
@@ -353,6 +356,7 @@ public class CalciteTests
     for (Class<? extends ExprMacroTable.ExprMacro> clazz : ExpressionModule.EXPR_MACROS) {
       exprMacros.add(INJECTOR.getInstance(clazz));
     }
+    exprMacros.add(INJECTOR.getInstance(LookupExprMacro.class));
     return new ExprMacroTable(exprMacros);
   }
 
@@ -360,13 +364,13 @@ public class CalciteTests
   {
     try {
       final Set<SqlAggregator> aggregators = new HashSet<>();
-      final Set<SqlExtractionOperator> extractionOperators = new HashSet<>();
+      final Set<SqlOperatorConversion> extractionOperators = new HashSet<>();
 
       for (Class<? extends SqlAggregator> clazz : SqlModule.DEFAULT_AGGREGATOR_CLASSES) {
         aggregators.add(INJECTOR.getInstance(clazz));
       }
 
-      for (Class<? extends SqlExtractionOperator> clazz : SqlModule.DEFAULT_EXTRACTION_OPERATOR_CLASSES) {
+      for (Class<? extends SqlOperatorConversion> clazz : SqlModule.DEFAULT_OPERATOR_CONVERSION_CLASSES) {
         extractionOperators.add(INJECTOR.getInstance(clazz));
       }
 
