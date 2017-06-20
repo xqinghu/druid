@@ -25,6 +25,7 @@
   <artifactId>druid-parser-route</artifactId>
   <name>druid-parser-route</name>
   <description>druid-parser-route</description>
+  <version>0.10.1.1</version>
 
   <parent>
     <groupId>io.druid</groupId>
