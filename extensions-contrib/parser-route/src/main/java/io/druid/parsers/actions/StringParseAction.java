@@ -24,8 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.druid.data.input.impl.ParseSpec;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class StringParseAction extends ParseAction
 {
@@ -47,7 +47,13 @@ public class StringParseAction extends ParseAction
   @Override
   protected List<ParserInputRow> getInput()
   {
-    return input.stream().map(x -> new ParserInputRow(null, x)).collect(Collectors.toList());
+    List<ParserInputRow> rows = new ArrayList<>();
+    int counter = 0;
+    for (String row : input) {
+      rows.add(new ParserInputRow(null, row, ++counter == 1));
+    }
+
+    return rows;
   }
 
   @Override

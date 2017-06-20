@@ -26,10 +26,12 @@ import io.druid.data.input.impl.ParseSpec;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.ParseException;
 import io.druid.java.util.common.parsers.Parser;
+import io.druid.parsers.model.ObjectNotFoundException;
 import io.druid.parsers.model.ParserResponse;
 import io.druid.parsers.model.ParserResponseRow;
-import org.jets3t.service.S3ServiceException;
+import org.jets3t.service.ServiceException;
 
+import javax.ws.rs.core.Response;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -44,11 +46,13 @@ public abstract class ParseAction
   {
     private String filePath;
     private String data;
+    private boolean firstRow;
 
-    protected ParserInputRow(String filePath, String data)
+    protected ParserInputRow(String filePath, String data, boolean firstRow)
     {
       this.filePath = filePath;
       this.data = data;
+      this.firstRow = firstRow;
     }
   }
 
@@ -75,10 +79,17 @@ public abstract class ParseAction
     try {
       input = getInput();
     }
+    catch (ObjectNotFoundException e) {
+      return ParserResponse.error(e.getMessage(), Response.Status.NOT_FOUND.getStatusCode());
+    }
     catch (Exception e) {
-      if (e.getCause() != null && e.getCause() instanceof S3ServiceException) {
-        S3ServiceException cause = (S3ServiceException) e.getCause();
-        return ParserResponse.error(cause.getS3ErrorMessage(), cause.getResponseCode());
+      if (e.getCause() != null && e.getCause() instanceof ServiceException) {
+        ServiceException cause = (ServiceException) e.getCause();
+        return ParserResponse.error(
+            cause.getErrorMessage() != null
+            ? cause.getErrorMessage()
+            : cause.getResponseStatus(), cause.getResponseCode()
+        );
       }
 
       log.warn(e, "Exception while reading");
@@ -90,6 +101,10 @@ public abstract class ParseAction
         .map(
             x -> {
               try {
+                if (x.firstRow) {
+                  parser.startFileFromBeginning();
+                }
+
                 return new ParserResponseRow(x.filePath, x.data, parser.parse(x.data), null);
               }
               catch (ParseException e) {

@@ -25,13 +25,18 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import io.druid.data.input.impl.ParseSpec;
 import io.druid.java.util.common.CompressionUtils;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.parsers.model.ObjectNotFoundException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.LineIterator;
+import org.jets3t.service.ServiceException;
+import org.jets3t.service.StorageObjectsChunk;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.model.S3Object;
+import org.jets3t.service.model.StorageObject;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,6 +52,8 @@ public class S3ParseAction extends ParseAction
   private static final int DEFAULT_NUM_SAMPLED_ROWS = 10;
   private static final int MAX_SAMPLED_ROWS = 100;
   private static final long MAX_BYTES_PER_ROW = 50000L;
+  private static final int MIN_SAMPLED_ROWS_PER_FILE = 5;
+  private static final int MAX_FILES_TO_LIST = MAX_SAMPLED_ROWS / MIN_SAMPLED_ROWS_PER_FILE;
 
   private final RestS3Service s3Client;
   private final List<URI> uris;
@@ -93,19 +100,68 @@ public class S3ParseAction extends ParseAction
 
     cachedInput = new ArrayList<>();
 
-    int rowsToReadPerFile = (int) Math.ceil((double) numRows / uris.size());
+    List<URI> objectUris = new ArrayList<>();
+    for (URI prefixUri : uris) {
+      objectUris.addAll(expandPathPrefixes(prefixUri));
+    }
+
+    if (objectUris.isEmpty()) {
+      throw new ObjectNotFoundException(String.format("No objects found with prefixes %s", uris));
+    }
+
+    int rowsToReadPerFile = Math.max(MIN_SAMPLED_ROWS_PER_FILE, (int) Math.ceil((double) numRows / objectUris.size()));
     int numRowsRead = 0;
-    for (URI uri : uris) {
-      List<ParserInputRow> rows = getInputForUri(uri, rowsToReadPerFile);
+    for (URI objectUri : objectUris) {
+      List<ParserInputRow> rows = getInputForUri(objectUri, rowsToReadPerFile);
       numRowsRead += rows.size();
       cachedInput.addAll(rows);
 
       if (numRowsRead >= numRows) {
+        cachedInput = cachedInput.subList(0, numRows);
         break;
       }
     }
 
     return cachedInput;
+  }
+
+  private List<URI> expandPathPrefixes(URI uri)
+  {
+    final String s3Bucket = uri.getAuthority();
+    final String prefix = uri.getPath().startsWith("/") ? uri.getPath().substring(1) : uri.getPath();
+
+    try {
+      if (!s3Client.getObjectDetails(s3Bucket, prefix).isDirectoryPlaceholder()) {
+        return ImmutableList.of(uri);
+      }
+    }
+    catch (ServiceException e) {
+      // if we get a 404 here, it might be because they're trying to do a path prefix but didn't put the trailing slash;
+      // let's try it again as a path prefix and see if that gives us results
+      if (e == null || e.getResponseCode() != 404) {
+        throw Throwables.propagate(e);
+      }
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+
+    try {
+      log.info("Listing first %d objects under bucket[%s] prefix[%s] (%s)", MAX_FILES_TO_LIST, s3Bucket, prefix, uri);
+      final List<URI> expandedUris = new ArrayList<>();
+      final StorageObjectsChunk chunk = s3Client.listObjectsChunked(s3Bucket, prefix, null, MAX_FILES_TO_LIST, null);
+
+      for (StorageObject object : chunk.getObjects()) {
+        if (object != null && !object.isDirectoryPlaceholder()) {
+          expandedUris.add(new URI("s3", object.getBucketName(), "/" + object.getName(), null));
+        }
+      }
+
+      return expandedUris;
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
   }
 
   private List<ParserInputRow> getInputForUri(final URI uri, final int rowsToRead)
@@ -121,7 +177,7 @@ public class S3ParseAction extends ParseAction
     int counter = 0;
     try {
       while (iterator.hasNext() && counter++ < rowsToRead) {
-        rows.add(new ParserInputRow(uri.toString(), iterator.next()));
+        rows.add(new ParserInputRow(uri.toString(), iterator.next(), counter == 1));
       }
     }
     finally {
