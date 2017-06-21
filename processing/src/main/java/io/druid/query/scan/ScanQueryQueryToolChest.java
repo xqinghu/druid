@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package io.druid.query.scan;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -114,8 +115,8 @@ public class ScanQueryQueryToolChest extends QueryToolChest<ScanResultValue, Sca
       )
       {
         ScanQuery scanQuery = (ScanQuery) queryPlus.getQuery();
-        if (scanQuery.getDimensionsFilter() != null) {
-          scanQuery = scanQuery.withDimFilter(scanQuery.getDimensionsFilter().optimize());
+        if (scanQuery.getFilter() != null) {
+          scanQuery = scanQuery.withDimFilter(scanQuery.getFilter().optimize());
           queryPlus = queryPlus.withQuery(scanQuery);
         }
         return runner.run(queryPlus, responseContext);

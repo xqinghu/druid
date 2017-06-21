@@ -40,6 +40,8 @@ import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryQueryToolChest;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
+import io.druid.query.scan.ScanQuery;
+import io.druid.query.scan.ScanQueryQueryToolChest;
 import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQueryConfig;
@@ -76,6 +78,7 @@ public class QueryToolChestModule implements Module
                   .put(TimeBoundaryQuery.class, TimeBoundaryQueryQueryToolChest.class)
                   .put(SegmentMetadataQuery.class, SegmentMetadataQueryQueryToolChest.class)
                   .put(GroupByQuery.class, GroupByQueryQueryToolChest.class)
+                  .put(ScanQuery.class, ScanQueryQueryToolChest.class)
                   .put(SelectQuery.class, SelectQueryQueryToolChest.class)
                   .put(TopNQuery.class, TopNQueryQueryToolChest.class)
                   .put(DataSourceMetadataQuery.class, DataSourceQueryQueryToolChest.class)
