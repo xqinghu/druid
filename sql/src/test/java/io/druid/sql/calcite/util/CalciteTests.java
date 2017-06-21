@@ -40,6 +40,7 @@ import io.druid.data.input.impl.TimestampSpec;
 import io.druid.guice.ExpressionModule;
 import io.druid.guice.annotations.Json;
 import io.druid.math.expr.ExprMacroTable;
+import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
 import io.druid.query.DruidProcessingConfig;
 import io.druid.query.Query;
@@ -60,11 +61,11 @@ import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryQueryToolChest;
 import io.druid.query.metadata.SegmentMetadataQueryRunnerFactory;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
-import io.druid.query.select.SelectQuery;
+import io.druid.query.scan.ScanQuery;
+import io.druid.query.scan.ScanQueryEngine;
+import io.druid.query.scan.ScanQueryQueryToolChest;
+import io.druid.query.scan.ScanQueryRunnerFactory;
 import io.druid.query.select.SelectQueryConfig;
-import io.druid.query.select.SelectQueryEngine;
-import io.druid.query.select.SelectQueryQueryToolChest;
-import io.druid.query.select.SelectQueryRunnerFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
@@ -146,15 +147,10 @@ public class CalciteTests
               )
           )
           .put(
-              SelectQuery.class,
-              new SelectQueryRunnerFactory(
-                  new SelectQueryQueryToolChest(
-                      TestHelper.getJsonMapper(),
-                      QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator(),
-                      SELECT_CONFIG_SUPPLIER
-                  ),
-                  new SelectQueryEngine(SELECT_CONFIG_SUPPLIER),
-                  QueryRunnerTestHelper.NOOP_QUERYWATCHER
+              ScanQuery.class,
+              new ScanQueryRunnerFactory(
+                  new ScanQueryQueryToolChest(new DefaultGenericQueryMetricsFactory(TestHelper.getJsonMapper())),
+                  new ScanQueryEngine()
               )
           )
           .put(

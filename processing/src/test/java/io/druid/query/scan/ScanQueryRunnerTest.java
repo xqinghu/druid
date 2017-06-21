@@ -38,6 +38,7 @@ import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -134,7 +135,7 @@ public class ScanQueryRunnerTest
   public void testFullOnSelect()
   {
     List<String> columns = Lists.newArrayList(
-        ScanResultValue.timestampKey,
+        Column.TIME_COLUMN_NAME,
         "market",
         "quality",
         "qualityLong",
@@ -172,7 +173,7 @@ public class ScanQueryRunnerTest
   public void testFullOnSelectAsCompactedList()
   {
     final List<String> columns = Lists.newArrayList(
-        ScanResultValue.timestampKey,
+        Column.TIME_COLUMN_NAME,
         "market",
         "quality",
         "qualityLong",
@@ -212,7 +213,7 @@ public class ScanQueryRunnerTest
   {
     ScanQuery query = newTestQuery()
         .intervals(I_0112_0114)
-        .columns(QueryRunnerTestHelper.marketDimension, QueryRunnerTestHelper.indexMetric)
+        .columns(Column.TIME_COLUMN_NAME, QueryRunnerTestHelper.marketDimension, QueryRunnerTestHelper.indexMetric)
         .build();
 
     HashMap<String, Object> context = new HashMap<String, Object>();
@@ -224,7 +225,7 @@ public class ScanQueryRunnerTest
     List<ScanResultValue> expectedResults = toExpected(
         toEvents(
             new String[]{
-                ScanResultValue.timestampKey + ":TIME",
+                Column.TIME_COLUMN_NAME + ":TIME",
                 QueryRunnerTestHelper.marketDimension + ":STRING",
                 null,
                 null,
@@ -236,7 +237,7 @@ public class ScanQueryRunnerTest
             },
             V_0112_0114
         ),
-        Lists.newArrayList(ScanResultValue.timestampKey, "market", "index"),
+        Lists.newArrayList(Column.TIME_COLUMN_NAME, "market", "index"),
         0,
         3
     );
@@ -248,7 +249,7 @@ public class ScanQueryRunnerTest
   {
     ScanQuery query = newTestQuery()
         .intervals(I_0112_0114)
-        .columns(QueryRunnerTestHelper.marketDimension, QueryRunnerTestHelper.indexMetric)
+        .columns(Column.TIME_COLUMN_NAME, QueryRunnerTestHelper.marketDimension, QueryRunnerTestHelper.indexMetric)
         .resultFormat(ScanQuery.RESULT_FORMAT_COMPACTED_LIST)
         .build();
 
@@ -261,7 +262,7 @@ public class ScanQueryRunnerTest
     List<ScanResultValue> expectedResults = toExpected(
         toEvents(
             new String[]{
-                ScanResultValue.timestampKey + ":TIME",
+                Column.TIME_COLUMN_NAME + ":TIME",
                 QueryRunnerTestHelper.marketDimension + ":STRING",
                 null,
                 null,
@@ -273,7 +274,7 @@ public class ScanQueryRunnerTest
             },
             V_0112_0114
         ),
-        Lists.newArrayList(ScanResultValue.timestampKey, "market", "index"),
+        Lists.newArrayList(Column.TIME_COLUMN_NAME, "market", "index"),
         0,
         3
     );
@@ -288,7 +289,7 @@ public class ScanQueryRunnerTest
       ScanQuery query = newTestQuery()
           .intervals(I_0112_0114)
           .filters(new SelectorDimFilter(QueryRunnerTestHelper.marketDimension, "spot", null))
-          .columns(QueryRunnerTestHelper.qualityDimension, QueryRunnerTestHelper.indexMetric)
+          .columns(Column.TIME_COLUMN_NAME, QueryRunnerTestHelper.qualityDimension, QueryRunnerTestHelper.indexMetric)
           .limit(limit)
           .build();
 
@@ -300,7 +301,7 @@ public class ScanQueryRunnerTest
 
       final List<List<Map<String, Object>>> events = toEvents(
           new String[]{
-              ScanResultValue.timestampKey + ":TIME",
+              Column.TIME_COLUMN_NAME + ":TIME",
               null,
               QueryRunnerTestHelper.qualityDimension + ":STRING",
               null,
@@ -334,7 +335,7 @@ public class ScanQueryRunnerTest
 
       List<ScanResultValue> expectedResults = toExpected(
           events,
-          Lists.newArrayList(ScanResultValue.timestampKey, "quality", "index"),
+          Lists.newArrayList(Column.TIME_COLUMN_NAME, "quality", "index"),
           0,
           limit
       );
@@ -352,7 +353,7 @@ public class ScanQueryRunnerTest
     ScanQuery query = newTestQuery()
         .intervals(I_0112_0114)
         .filters(new SelectorDimFilter(QueryRunnerTestHelper.marketDimension, "replaced", lookupExtractionFn))
-        .columns(QueryRunnerTestHelper.qualityDimension, QueryRunnerTestHelper.indexMetric)
+        .columns(Column.TIME_COLUMN_NAME, QueryRunnerTestHelper.qualityDimension, QueryRunnerTestHelper.indexMetric)
         .build();
 
     Iterable<ScanResultValue> results = Sequences.toList(
@@ -366,7 +367,7 @@ public class ScanQueryRunnerTest
 
     final List<List<Map<String, Object>>> events = toEvents(
         new String[]{
-            ScanResultValue.timestampKey + ":TIME",
+            Column.TIME_COLUMN_NAME + ":TIME",
             null,
             QueryRunnerTestHelper.qualityDimension + ":STRING",
             null,
@@ -386,7 +387,7 @@ public class ScanQueryRunnerTest
 
     List<ScanResultValue> expectedResults = toExpected(
         events,
-        Lists.newArrayList(ScanResultValue.timestampKey, QueryRunnerTestHelper.qualityDimension, QueryRunnerTestHelper.indexMetric),
+        Lists.newArrayList(Column.TIME_COLUMN_NAME, QueryRunnerTestHelper.qualityDimension, QueryRunnerTestHelper.indexMetric),
         0,
         3
     );
@@ -425,7 +426,7 @@ public class ScanQueryRunnerTest
   {
     ScanQuery query = newTestQuery()
         .intervals(I_0112_0114)
-        .columns("foo", "foo2")
+        .columns("__time", "foo", "foo2")
         .build();
 
     Iterable<ScanResultValue> results = Sequences.toList(
@@ -435,14 +436,14 @@ public class ScanQueryRunnerTest
 
     final List<List<Map<String, Object>>> events = toEvents(
         new String[]{
-            ScanResultValue.timestampKey + ":TIME"
+            Column.TIME_COLUMN_NAME + ":TIME"
         },
         V_0112_0114
     );
 
     List<ScanResultValue> expectedResults = toExpected(
         events,
-        Lists.<String>newArrayList(ScanResultValue.timestampKey, "foo", "foo2"),
+        Lists.<String>newArrayList(Column.TIME_COLUMN_NAME, "foo", "foo2"),
         0,
         3
     );
@@ -453,7 +454,7 @@ public class ScanQueryRunnerTest
   {
     return toEvents(
         new String[]{
-            ScanResultValue.timestampKey + ":TIME",
+            Column.TIME_COLUMN_NAME + ":TIME",
             QueryRunnerTestHelper.marketDimension + ":STRING",
             QueryRunnerTestHelper.qualityDimension + ":STRING",
             "qualityLong" + ":LONG",
@@ -493,7 +494,7 @@ public class ScanQueryRunnerTest
                       event.put(
                           specs[0],
                           specs.length == 1 || specs[1].equals("STRING") ? values[i] :
-                          specs[1].equals("TIME") ? new DateTime(values[i]) :
+                          specs[1].equals("TIME") ? new DateTime(values[i]).getMillis() :
                           specs[1].equals("FLOAT") ? Float.valueOf(values[i]) :
                           specs[1].equals("DOUBLE") ? Double.valueOf(values[i]) :
                           specs[1].equals("LONG") ? Long.valueOf(values[i]) :
@@ -566,9 +567,14 @@ public class ScanQueryRunnerTest
           Object actVal = acHolder.get(ex.getKey());
 
           // work around for current II limitations
-          if (acHolder.get(ex.getKey()) instanceof Double) {
+          if (actVal instanceof Double) {
             actVal = ((Double) actVal).floatValue();
           }
+
+          if (actVal instanceof String[]) {
+            actVal = Arrays.asList((String[]) actVal);
+          }
+
           Assert.assertEquals("invalid value for " + ex.getKey(), ex.getValue(), actVal);
         }
       }
@@ -601,7 +607,7 @@ public class ScanQueryRunnerTest
   }
 
   private Iterable<ScanResultValue> compactedListToRow(Iterable<ScanResultValue> results) {
-    return Iterables.transform(results, new Function<ScanResultValue, ScanResultValue>()
+    return Lists.newArrayList(Iterables.transform(results, new Function<ScanResultValue, ScanResultValue>()
     {
       @Override
       public ScanResultValue apply(ScanResultValue input)
@@ -618,6 +624,6 @@ public class ScanQueryRunnerTest
         }
         return new ScanResultValue(input.getSegmentId(), input.getColumns(), mapEvents);
       }
-    });
+    }));
   }
 }
