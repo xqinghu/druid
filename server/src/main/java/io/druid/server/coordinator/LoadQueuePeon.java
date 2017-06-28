@@ -137,6 +137,11 @@ public class LoadQueuePeon
     return failedAssignCount.getAndSet(0);
   }
 
+  public int getNumberOfSegmentsInQueue()
+  {
+    return segmentsToLoad.size();
+  }
+
   public void loadSegment(
       final DataSegment segment,
       final LoadPeonCallback callback
