@@ -46,6 +46,7 @@ import io.druid.segment.column.ValueType;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.virtual.ExpressionVirtualColumn;
 import io.druid.server.initialization.ServerConfig;
+import io.druid.server.security.AuthConfig;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.filtration.Filtration;
@@ -142,7 +143,9 @@ public class QuantileSqlAggregatorTest
         operatorTable,
         CalciteTests.createExprMacroTable(),
         plannerConfig,
-        new ServerConfig()
+        new ServerConfig(),
+        new AuthConfig(),
+        null
     );
   }
 

@@ -20,19 +20,11 @@
 package io.druid.security.kerberos;
 
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
-import com.google.inject.multibindings.Multibinder;
-import com.metamx.http.client.HttpClient;
 import io.druid.guice.JsonConfigProvider;
-import io.druid.guice.LazySingleton;
-import io.druid.guice.annotations.Client;
-import io.druid.guice.annotations.Global;
-import io.druid.guice.http.HttpClientModule;
-import io.druid.guice.http.JettyHttpClientModule;
 import io.druid.initialization.DruidModule;
-import io.druid.server.initialization.jetty.ServletFilterHolder;
-import io.druid.server.router.Router;
 
 import java.util.List;
 
@@ -45,6 +37,9 @@ public class DruidKerberosModule implements DruidModule
   public List<? extends Module> getJacksonModules()
   {
     return ImmutableList.of(
+        new SimpleModule("DruidKerberos").registerSubtypes(
+            KerberosAuthenticator.class
+        )
     );
   }
 
@@ -54,6 +49,7 @@ public class DruidKerberosModule implements DruidModule
     JsonConfigProvider.bind(binder, "druid.hadoop.security.kerberos", AuthenticationKerberosConfig.class);
     JsonConfigProvider.bind(binder, "druid.hadoop.security.spnego", SpnegoFilterConfig.class);
 
+    /*
     Multibinder.newSetBinder(binder, ServletFilterHolder.class)
                .addBinding()
                .to(SpnegoFilterHolder.class);
@@ -72,5 +68,6 @@ public class DruidKerberosModule implements DruidModule
           .annotatedWith(Router.class)
           .toProvider(new KerberosJettyHttpClientProvider(new JettyHttpClientModule.HttpClientProvider(Router.class)))
           .in(LazySingleton.class);
+          */
   }
 }

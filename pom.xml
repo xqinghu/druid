@@ -100,6 +100,7 @@
         <module>extensions-core/avro-extensions</module>
         <module>extensions-core/caffeine-cache</module>
         <module>extensions-core/datasketches</module>
+        <module>extensions-core/druid-basic-security</module>
         <module>extensions-core/druid-kerberos</module>
         <module>extensions-core/hdfs-storage</module>
         <module>extensions-core/histogram</module>

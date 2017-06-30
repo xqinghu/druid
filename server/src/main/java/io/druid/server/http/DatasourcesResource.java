@@ -42,7 +42,7 @@ import io.druid.metadata.MetadataSegmentManager;
 import io.druid.query.TableDataSource;
 import io.druid.server.http.security.DatasourceResourceFilter;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizationManager;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
@@ -80,19 +80,22 @@ public class DatasourcesResource
   private final MetadataSegmentManager databaseSegmentManager;
   private final IndexingServiceClient indexingServiceClient;
   private final AuthConfig authConfig;
+  private final AuthorizationManager authorizationManager;
 
   @Inject
   public DatasourcesResource(
       CoordinatorServerView serverInventoryView,
       MetadataSegmentManager databaseSegmentManager,
       @Nullable IndexingServiceClient indexingServiceClient,
-      AuthConfig authConfig
+      AuthConfig authConfig,
+      AuthorizationManager authorizationManager
   )
   {
     this.serverInventoryView = serverInventoryView;
     this.databaseSegmentManager = databaseSegmentManager;
     this.indexingServiceClient = indexingServiceClient;
     this.authConfig = authConfig;
+    this.authorizationManager = authorizationManager;
   }
 
   @GET
@@ -107,7 +110,8 @@ public class DatasourcesResource
     final Set<DruidDataSource> datasources = authConfig.isEnabled() ?
                                              InventoryViewUtils.getSecuredDataSources(
                                                  serverInventoryView,
-                                                 (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)
+                                                 authorizationManager,
+                                                 (String) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)
                                              ) :
                                              InventoryViewUtils.getDataSources(serverInventoryView);
 

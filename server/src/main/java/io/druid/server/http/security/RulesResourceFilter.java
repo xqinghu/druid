@@ -27,8 +27,10 @@ import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ContainerRequest;
 import io.druid.server.security.Access;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizationManager;
+import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.Resource;
+import io.druid.server.security.ResourceAction;
 import io.druid.server.security.ResourceType;
 
 import javax.ws.rs.WebApplicationException;
@@ -46,9 +48,12 @@ import java.util.List;
 public class RulesResourceFilter extends AbstractResourceFilter
 {
   @Inject
-  public RulesResourceFilter(AuthConfig authConfig)
+  public RulesResourceFilter(
+      AuthConfig authConfig,
+      AuthorizationManager authorizationManager
+  )
   {
-    super(authConfig);
+    super(authConfig, authorizationManager);
   }
 
   @Override
@@ -71,15 +76,18 @@ public class RulesResourceFilter extends AbstractResourceFilter
                                                ) + 1
                                            ).getPath();
       Preconditions.checkNotNull(dataSourceName);
-      final AuthorizationInfo authorizationInfo = (AuthorizationInfo) getReq().getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      Preconditions.checkNotNull(
-          authorizationInfo,
-          "Security is enabled but no authorization info found in the request"
-      );
-      final Access authResult = authorizationInfo.isAuthorized(
+
+      final ResourceAction resourceAction = new ResourceAction(
           new Resource(dataSourceName, ResourceType.DATASOURCE),
           getAction(request)
       );
+
+      final Access authResult = AuthorizationUtils.authorizeResourceAction(
+          getReq(),
+          resourceAction,
+          getAuthorizationManager()
+      );
+
       if (!authResult.isAllowed()) {
         throw new WebApplicationException(
             Response.status(Response.Status.FORBIDDEN)

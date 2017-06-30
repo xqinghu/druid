@@ -41,6 +41,10 @@ import io.druid.initialization.Initialization;
 import io.druid.server.DruidNode;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.initialization.jetty.ServletFilterHolder;
+import io.druid.server.security.Access;
+import io.druid.server.security.Action;
+import io.druid.server.security.AuthorizationManager;
+import io.druid.server.security.Resource;
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jetty.server.Server;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -126,6 +130,16 @@ public class JettyTest extends BaseJettyTest
                 Jerseys.addResource(binder, SlowResource.class);
                 Jerseys.addResource(binder, ExceptionResource.class);
                 Jerseys.addResource(binder, DefaultResource.class);
+                binder.bind(AuthorizationManager.class).toInstance(new AuthorizationManager()
+                {
+                  @Override
+                  public Access authorize(
+                      String identity, Resource resource, Action action
+                  )
+                  {
+                    return new Access(true);
+                  }
+                });
                 LifecycleModule.register(binder, Server.class);
               }
             }

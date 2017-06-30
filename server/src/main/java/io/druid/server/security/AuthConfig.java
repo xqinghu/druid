@@ -30,16 +30,30 @@ public class AuthConfig
    * */
   public static final String DRUID_AUTH_TOKEN = "Druid-Auth-Token";
 
+  /**
+   * HTTP attribute set when a static method in AuthorizationUtils performs an authorization check on the request.
+   */
+  public static final String DRUID_AUTH_TOKEN_CHECKED = "Druid-Auth-Token-Checked";
+
   public AuthConfig() {
-    this(false);
+    this(false, null, null, false, null);
   }
 
   @JsonCreator
   public AuthConfig(
-      @JsonProperty("enabled") boolean enabled
+      @JsonProperty("enabled") boolean enabled,
+      @JsonProperty("systemPrincipal") String systemPrincipal,
+      @JsonProperty("systemPrincipalSecret") String systemPrincipalSecret,
+      @JsonProperty("remapAuthNames") boolean remapAuthNames,
+      @JsonProperty("authenticationChainPath") String authenticationChainPath
   ){
     this.enabled = enabled;
+    this.systemPrincipal = systemPrincipal;
+    this.systemPrincipalSecret = systemPrincipalSecret;
+    this.remapAuthNames = remapAuthNames;
+    this.authenticationChainPath = authenticationChainPath;
   }
+
   /**
    * If druid.auth.enabled is set to true then an implementation of AuthorizationInfo
    * must be provided and it must be set as a request attribute possibly inside the servlet filter
@@ -48,9 +62,52 @@ public class AuthConfig
   @JsonProperty
   private final boolean enabled;
 
+  @JsonProperty
+  private final String systemPrincipal;
+
+  @JsonProperty
+  private final String systemPrincipalSecret;
+
+  @JsonProperty
+  private final boolean remapAuthNames;
+
+  @JsonProperty
+  private final String authenticationChainPath;
+
   public boolean isEnabled()
   {
     return enabled;
+  }
+
+  public String getSystemPrincipal()
+  {
+    return systemPrincipal;
+  }
+
+  public String getSystemPrincipalSecret()
+  {
+    return systemPrincipalSecret;
+  }
+
+  public boolean isRemapAuthNames()
+  {
+    return remapAuthNames;
+  }
+
+  public String getAuthenticationChainPath()
+  {
+    return authenticationChainPath;
+  }
+
+  @Override
+  public String toString()
+  {
+    return "AuthConfig{" +
+           "enabled=" + enabled +
+           ", systemPrincipal='" + systemPrincipal + '\'' +
+           ", remapAuthNames=" + remapAuthNames +
+           ", authenticationChainPath='" + authenticationChainPath + '\'' +
+           '}';
   }
 
   @Override
@@ -65,21 +122,30 @@ public class AuthConfig
 
     AuthConfig that = (AuthConfig) o;
 
-    return enabled == that.enabled;
+    if (isEnabled() != that.isEnabled()) {
+      return false;
+    }
+    if (isRemapAuthNames() != that.isRemapAuthNames()) {
+      return false;
+    }
+    if (!getSystemPrincipal().equals(that.getSystemPrincipal())) {
+      return false;
+    }
+    if (!getSystemPrincipalSecret().equals(that.getSystemPrincipalSecret())) {
+      return false;
+    }
+    return getAuthenticationChainPath().equals(that.getAuthenticationChainPath());
 
   }
 
   @Override
   public int hashCode()
   {
-    return (enabled ? 1 : 0);
-  }
-
-  @Override
-  public String toString()
-  {
-    return "AuthConfig{" +
-           "enabled=" + enabled +
-           '}';
+    int result = (isEnabled() ? 1 : 0);
+    result = 31 * result + getSystemPrincipal().hashCode();
+    result = 31 * result + getSystemPrincipalSecret().hashCode();
+    result = 31 * result + (isRemapAuthNames() ? 1 : 0);
+    result = 31 * result + getAuthenticationChainPath().hashCode();
+    return result;
   }
 }

@@ -31,8 +31,10 @@ import io.druid.indexing.overlord.TaskStorageQueryAdapter;
 import io.druid.server.http.security.AbstractResourceFilter;
 import io.druid.server.security.Access;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizationManager;
+import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.Resource;
+import io.druid.server.security.ResourceAction;
 import io.druid.server.security.ResourceType;
 
 import javax.ws.rs.WebApplicationException;
@@ -51,9 +53,13 @@ public class TaskResourceFilter extends AbstractResourceFilter
   private final TaskStorageQueryAdapter taskStorageQueryAdapter;
 
   @Inject
-  public TaskResourceFilter(TaskStorageQueryAdapter taskStorageQueryAdapter, AuthConfig authConfig)
+  public TaskResourceFilter(
+      TaskStorageQueryAdapter taskStorageQueryAdapter,
+      AuthConfig authConfig,
+      AuthorizationManager authorizationManager
+  )
   {
-    super(authConfig);
+    super(authConfig, authorizationManager);
     this.taskStorageQueryAdapter = taskStorageQueryAdapter;
   }
 
@@ -89,15 +95,17 @@ public class TaskResourceFilter extends AbstractResourceFilter
       }
       final String dataSourceName = Preconditions.checkNotNull(taskOptional.get().getDataSource());
 
-      final AuthorizationInfo authorizationInfo = (AuthorizationInfo) getReq().getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      Preconditions.checkNotNull(
-          authorizationInfo,
-          "Security is enabled but no authorization info found in the request"
-      );
-      final Access authResult = authorizationInfo.isAuthorized(
+      final ResourceAction resourceAction = new ResourceAction(
           new Resource(dataSourceName, ResourceType.DATASOURCE),
           getAction(request)
       );
+
+      final Access authResult = AuthorizationUtils.authorizeResourceAction(
+          getReq(),
+          resourceAction,
+          getAuthorizationManager()
+      );
+
       if (!authResult.isAllowed()) {
         throw new WebApplicationException(Response.status(Response.Status.FORBIDDEN)
                                                   .entity(

@@ -27,7 +27,7 @@ import io.druid.client.InventoryView;
 import io.druid.java.util.common.MapUtils;
 import io.druid.java.util.common.guava.Comparators;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizationManager;
 import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 
@@ -51,15 +51,18 @@ public class IntervalsResource
 {
   private final InventoryView serverInventoryView;
   private final AuthConfig authConfig;
+  private final AuthorizationManager authorizationManager;
 
   @Inject
   public IntervalsResource(
       InventoryView serverInventoryView,
-      AuthConfig authConfig
+      AuthConfig authConfig,
+      AuthorizationManager authorizationManager
   )
   {
     this.serverInventoryView = serverInventoryView;
     this.authConfig = authConfig;
+    this.authorizationManager = authorizationManager;
   }
 
   @GET
@@ -70,7 +73,8 @@ public class IntervalsResource
     final Set<DruidDataSource> datasources = authConfig.isEnabled() ?
                                              InventoryViewUtils.getSecuredDataSources(
                                                  serverInventoryView,
-                                                 (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)
+                                                 authorizationManager,
+                                                 (String) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)
                                              ) :
                                              InventoryViewUtils.getDataSources(serverInventoryView);
 
@@ -103,7 +107,8 @@ public class IntervalsResource
     final Set<DruidDataSource> datasources = authConfig.isEnabled() ?
                                              InventoryViewUtils.getSecuredDataSources(
                                                  serverInventoryView,
-                                                 (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)
+                                                 authorizationManager,
+                                                 (String) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)
                                              ) :
                                              InventoryViewUtils.getDataSources(serverInventoryView);
 

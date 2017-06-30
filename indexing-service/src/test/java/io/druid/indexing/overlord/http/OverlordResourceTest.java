@@ -39,7 +39,7 @@ import io.druid.indexing.overlord.TaskStorageQueryAdapter;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizationManager;
 import io.druid.server.security.Resource;
 import org.easymock.EasyMock;
 import org.junit.After;
@@ -72,34 +72,40 @@ public class OverlordResourceTest
         Optional.of(taskRunner)
     ).anyTimes();
 
+    AuthorizationManager authorizationManager = new AuthorizationManager()
+    {
+      @Override
+      public Access authorize(String identity, Resource resource, Action action)
+      {
+        if (resource.getName().equals("allow")) {
+          return new Access(true);
+        } else {
+          return new Access(false);
+        }
+      }
+    };
+
     overlordResource = new OverlordResource(
         taskMaster,
         tsqa,
         null,
         null,
         null,
-        new AuthConfig(true)
+        new AuthConfig(true, null, null, false, null),
+        authorizationManager
     );
   }
 
   public void expectAuthorizationTokenCheck()
   {
-    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)).andReturn(
-        new AuthorizationInfo()
-        {
-          @Override
-          public Access isAuthorized(
-              Resource resource, Action action
-          )
-          {
-            if (resource.getName().equals("allow")) {
-              return new Access(true);
-            } else {
-              return new Access(false);
-            }
-          }
-        }
-    );
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED)).andReturn(null).anyTimes();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)).andReturn("druid");
+
+    req.setAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED, false);
+    EasyMock.expectLastCall().anyTimes();
+
+    req.setAttribute(AuthConfig.DRUID_AUTH_TOKEN_CHECKED, true);
+    EasyMock.expectLastCall().anyTimes();
   }
 
   @Test

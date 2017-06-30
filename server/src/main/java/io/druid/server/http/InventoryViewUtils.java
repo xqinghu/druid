@@ -33,7 +33,7 @@ import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizationManager;
 import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceType;
 
@@ -80,11 +80,12 @@ public class InventoryViewUtils
 
   public static Set<DruidDataSource> getSecuredDataSources(
       InventoryView inventoryView,
-      final AuthorizationInfo authorizationInfo
+      final AuthorizationManager authorizationManager,
+      final String identity
   )
   {
-    if (authorizationInfo == null) {
-      throw new ISE("Invalid to call a secured method with null AuthorizationInfo!!");
+    if (authorizationManager == null) {
+      throw new ISE("Invalid to call a secured method with null AuthorizationManager!!");
     } else {
       final Map<Pair<Resource, Action>, Access> resourceAccessMap = new HashMap<>();
       return ImmutableSet.copyOf(
@@ -101,7 +102,7 @@ public class InventoryViewUtils
                   if (resourceAccessMap.containsKey(key)) {
                     return resourceAccessMap.get(key).isAllowed();
                   } else {
-                    Access access = authorizationInfo.isAuthorized(key.lhs, key.rhs);
+                    Access access = authorizationManager.authorize(identity, key.lhs, key.rhs);
                     resourceAccessMap.put(key, access);
                     return access.isAllowed();
                   }

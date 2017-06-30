@@ -52,6 +52,10 @@ import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.server.router.QueryHostFinder;
+import io.druid.server.security.Access;
+import io.druid.server.security.Action;
+import io.druid.server.security.AuthorizationManager;
+import io.druid.server.security.Resource;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
@@ -110,6 +114,16 @@ public class AsyncQueryForwardingServletTest extends BaseJettyTest
                     binder, Key.get(DruidNode.class, Self.class), new DruidNode("test", "localhost", null, null, new ServerConfig())
                 );
                 binder.bind(JettyServerInitializer.class).to(ProxyJettyServerInit.class).in(LazySingleton.class);
+                binder.bind(AuthorizationManager.class).toInstance(new AuthorizationManager()
+                {
+                  @Override
+                  public Access authorize(
+                      String identity, Resource resource, Action action
+                  )
+                  {
+                    return new Access(true);
+                  }
+                });
                 Jerseys.addResource(binder, SlowResource.class);
                 Jerseys.addResource(binder, ExceptionResource.class);
                 Jerseys.addResource(binder, DefaultResource.class);

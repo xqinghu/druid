@@ -27,6 +27,8 @@ import com.metamx.http.client.HttpClientInit;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.annotations.Global;
+import io.druid.server.security.AuthConfig;
+import io.druid.server.security.Authenticator;
 
 import java.lang.annotation.Annotation;
 
@@ -115,7 +117,13 @@ public class HttpClientModule implements Module
         builder.withSslContext(getSslContextBinding().getProvider().get());
       }
 
-      return HttpClientInit.createClient(builder.build(), LifecycleUtils.asMmxLifecycle(getLifecycleProvider().get()));
+      HttpClient client = HttpClientInit.createClient(builder.build(), LifecycleUtils.asMmxLifecycle(getLifecycleProvider().get()));
+      final AuthConfig authConfig = getAuthConfig();
+      if (authConfig.isEnabled()) {
+        Authenticator[] authenticators = getAuthenticatorChain();
+        client = authenticators[0].createInternalClient(client);
+      }
+      return client;
     }
   }
 }

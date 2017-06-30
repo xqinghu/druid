@@ -27,8 +27,10 @@ import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ContainerRequest;
 import io.druid.server.security.Access;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizationManager;
+import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.Resource;
+import io.druid.server.security.ResourceAction;
 import io.druid.server.security.ResourceType;
 
 import javax.ws.rs.WebApplicationException;
@@ -46,9 +48,12 @@ import java.util.List;
 public class DatasourceResourceFilter extends AbstractResourceFilter
 {
   @Inject
-  public DatasourceResourceFilter(AuthConfig authConfig)
+  public DatasourceResourceFilter(
+      AuthConfig authConfig,
+      AuthorizationManager authorizationManager
+  )
   {
-    super(authConfig);
+    super(authConfig, authorizationManager);
   }
 
   @Override
@@ -56,30 +61,17 @@ public class DatasourceResourceFilter extends AbstractResourceFilter
   {
     if (getAuthConfig().isEnabled()) {
       // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      final String dataSourceName = request.getPathSegments()
-                                           .get(
-                                               Iterables.indexOf(
-                                                   request.getPathSegments(),
-                                                   new Predicate<PathSegment>()
-                                                   {
-                                                     @Override
-                                                     public boolean apply(PathSegment input)
-                                                     {
-                                                       return input.getPath().equals("datasources");
-                                                     }
-                                                   }
-                                               ) + 1
-                                           ).getPath();
-      Preconditions.checkNotNull(dataSourceName);
-      final AuthorizationInfo authorizationInfo = (AuthorizationInfo) getReq().getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      Preconditions.checkNotNull(
-          authorizationInfo,
-          "Security is enabled but no authorization info found in the request"
-      );
-      final Access authResult = authorizationInfo.isAuthorized(
-          new Resource(dataSourceName, ResourceType.DATASOURCE),
+      final ResourceAction resourceAction = new ResourceAction(
+          new Resource(getRequestDatasourceName(request), ResourceType.DATASOURCE),
           getAction(request)
       );
+
+      final Access authResult = AuthorizationUtils.authorizeResourceAction(
+          getReq(),
+          resourceAction,
+          getAuthorizationManager()
+      );
+
       if (!authResult.isAllowed()) {
         throw new WebApplicationException(
             Response.status(Response.Status.FORBIDDEN)
@@ -90,6 +82,26 @@ public class DatasourceResourceFilter extends AbstractResourceFilter
     }
 
     return request;
+  }
+
+  private String getRequestDatasourceName(ContainerRequest request)
+  {
+    final String dataSourceName = request.getPathSegments()
+                                         .get(
+                                             Iterables.indexOf(
+                                                 request.getPathSegments(),
+                                                 new Predicate<PathSegment>()
+                                                 {
+                                                   @Override
+                                                   public boolean apply(PathSegment input)
+                                                   {
+                                                     return input.getPath().equals("datasources");
+                                                   }
+                                                 }
+                                             ) + 1
+                                         ).getPath();
+    Preconditions.checkNotNull(dataSourceName);
+    return dataSourceName;
   }
 
   @Override

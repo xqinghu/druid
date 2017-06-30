@@ -55,6 +55,7 @@ import io.druid.guice.annotations.Client;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
 import io.druid.guice.http.HttpClientModule;
+import io.druid.guice.security.AuthorizationManagerModule;
 import io.druid.guice.security.DruidAuthModule;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
@@ -347,6 +348,7 @@ public class Initialization
         // New modules should be added after Log4jShutterDownerModule
         new Log4jShutterDownerModule(),
         new DruidAuthModule(),
+        new AuthorizationManagerModule(),
         new LifecycleModule(),
         EmitterModule.class,
         HttpClientModule.global(),

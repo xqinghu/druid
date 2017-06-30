@@ -36,6 +36,7 @@ import io.druid.server.http.security.StateResourceFilter;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthorizationManager;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -68,6 +69,7 @@ public class BrokerQueryResource extends QueryResource
       RequestLogger requestLogger,
       QueryManager queryManager,
       AuthConfig authConfig,
+      AuthorizationManager authorizationManager,
       GenericQueryMetricsFactory queryMetricsFactory,
       TimelineServerView brokerServerView
   )
@@ -82,6 +84,7 @@ public class BrokerQueryResource extends QueryResource
         requestLogger,
         queryManager,
         authConfig,
+        authorizationManager,
         queryMetricsFactory
     );
     this.brokerServerView = brokerServerView;

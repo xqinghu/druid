@@ -34,6 +34,8 @@ import io.druid.segment.IndexMergerV9;
 import io.druid.segment.column.ColumnConfig;
 import io.druid.segment.realtime.firehose.ChatHandlerProvider;
 import io.druid.segment.realtime.firehose.NoopChatHandlerProvider;
+import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthorizationManager;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -76,6 +78,8 @@ public class TestUtils
             .addValue(IndexMerger.class, indexMerger)
             .addValue(ObjectMapper.class, jsonMapper)
             .addValue(ChatHandlerProvider.class, new NoopChatHandlerProvider())
+            .addValue(AuthConfig.class, new AuthConfig())
+            .addValue(AuthorizationManager.class, null)
     );
   }
 

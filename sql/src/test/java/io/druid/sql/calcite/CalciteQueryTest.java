@@ -82,6 +82,7 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ValueType;
 import io.druid.segment.virtual.ExpressionVirtualColumn;
 import io.druid.server.initialization.ServerConfig;
+import io.druid.server.security.AuthConfig;
 import io.druid.sql.calcite.filtration.Filtration;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
@@ -5118,7 +5119,9 @@ public class CalciteQueryTest
         operatorTable,
         macroTable,
         plannerConfig,
-        new ServerConfig()
+        new ServerConfig(),
+        new AuthConfig(),
+        null
     );
 
     viewManager.createView(

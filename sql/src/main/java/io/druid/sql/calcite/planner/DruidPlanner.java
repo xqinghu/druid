@@ -23,8 +23,13 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Sets;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
+import io.druid.server.security.Access;
+import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthorizationManager;
+import io.druid.server.security.AuthorizationUtils;
 import io.druid.sql.calcite.rel.DruidConvention;
 import io.druid.sql.calcite.rel.DruidRel;
 import org.apache.calcite.DataContext;
@@ -34,9 +39,11 @@ import org.apache.calcite.interpreter.BindableRel;
 import org.apache.calcite.interpreter.Bindables;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.RelVisitor;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
@@ -50,22 +57,42 @@ import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 import org.apache.calcite.util.Pair;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class DruidPlanner implements Closeable
 {
   private final Planner planner;
   private final PlannerContext plannerContext;
+  private final AuthConfig authConfig;
+  private final AuthorizationManager authorizationManager;
 
-  public DruidPlanner(final Planner planner, final PlannerContext plannerContext)
+  public DruidPlanner(
+      final Planner planner,
+      final PlannerContext plannerContext,
+      final AuthConfig authConfig,
+      final AuthorizationManager authorizationManager
+  )
   {
     this.planner = planner;
     this.plannerContext = plannerContext;
+    this.authConfig = authConfig;
+    this.authorizationManager = authorizationManager;
   }
 
   public PlannerResult plan(final String sql) throws SqlParseException, ValidationException, RelConversionException
+  {
+    return plan(sql, null, null);
+  }
+
+  public PlannerResult plan(
+      final String sql,
+      final HttpServletRequest request,
+      final String user
+  ) throws SqlParseException, ValidationException, RelConversionException, SecurityException
   {
     SqlExplain explain = null;
     SqlNode parsed = planner.parse(sql);
@@ -77,12 +104,12 @@ public class DruidPlanner implements Closeable
     final RelRoot root = planner.rel(validated);
 
     try {
-      return planWithDruidConvention(explain, root);
+      return planWithDruidConvention(explain, root, request, user);
     }
     catch (RelOptPlanner.CannotPlanException e) {
       // Try again with BINDABLE convention. Used for querying Values, metadata tables, and fallback.
       try {
-        return planWithBindableConvention(explain, root);
+        return planWithBindableConvention(explain, root, request, user);
       }
       catch (Exception e2) {
         e.addSuppressed(e2);
@@ -104,8 +131,10 @@ public class DruidPlanner implements Closeable
 
   private PlannerResult planWithDruidConvention(
       final SqlExplain explain,
-      final RelRoot root
-  ) throws RelConversionException
+      final RelRoot root,
+      final HttpServletRequest request,
+      final String user
+  ) throws RelConversionException, SecurityException
   {
     final DruidRel<?> druidRel = (DruidRel<?>) planner.transform(
         Rules.DRUID_CONVENTION_RULES,
@@ -114,6 +143,30 @@ public class DruidPlanner implements Closeable
                .plus(root.collation),
         root.rel
     );
+
+    if (authConfig != null && authConfig.isEnabled()) {
+      List<String> datasourceNames = druidRel.getDatasourceNames();
+      Access authResult;
+      if (request != null) {
+        authResult = AuthorizationUtils.authorizeAllResourceActions(
+            request,
+            datasourceNames,
+            AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR,
+            authorizationManager
+        );
+      } else {
+        authResult = AuthorizationUtils.authorizeAllResourceActions(
+            datasourceNames,
+            AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR,
+            user,
+            authorizationManager
+        );
+      }
+
+      if (!authResult.isAllowed()) {
+        throw new SecurityException(authResult.toString());
+      }
+    }
 
     if (explain != null) {
       return planExplanation(druidRel, explain);
@@ -149,9 +202,50 @@ public class DruidPlanner implements Closeable
     }
   }
 
+  private Access authorizeBindableRel(BindableRel rel, HttpServletRequest req, final String user)
+  {
+    Set<String> datasourceNames = Sets.newHashSet();
+    rel.childrenAccept(
+        new RelVisitor()
+        {
+          @Override
+          public void visit(RelNode node, int ordinal, RelNode parent)
+          {
+            if (node instanceof DruidRel) {
+              datasourceNames.addAll(((DruidRel) node).getDatasourceNames());
+            }
+            if (node instanceof Bindables.BindableTableScan) {
+              Bindables.BindableTableScan bts = (Bindables.BindableTableScan) node;
+              RelOptTable table = bts.getTable();
+              String tableName = table.getQualifiedName().get(0);
+              datasourceNames.add(tableName);
+            }
+            node.childrenAccept(this);
+          }
+        }
+    );
+    if (req != null) {
+      return AuthorizationUtils.authorizeAllResourceActions(
+          req,
+          datasourceNames,
+          AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR,
+          authorizationManager
+      );
+    } else {
+      return AuthorizationUtils.authorizeAllResourceActions(
+          datasourceNames,
+          AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR,
+          user,
+          authorizationManager
+      );
+    }
+  }
+
   private PlannerResult planWithBindableConvention(
       final SqlExplain explain,
-      final RelRoot root
+      final RelRoot root,
+      final HttpServletRequest request,
+      final String user
   ) throws RelConversionException
   {
     BindableRel bindableRel = (BindableRel) planner.transform(
@@ -176,6 +270,13 @@ public class DruidPlanner implements Closeable
           projects,
           root.validatedRowType
       );
+    }
+    
+    if (authConfig != null && authConfig.isEnabled()) {
+      Access accessResult = authorizeBindableRel(bindableRel, request, user);
+      if (!accessResult.isAllowed()) {
+        throw new SecurityException(accessResult.toString());
+      }
     }
 
     if (explain != null) {
