@@ -56,7 +56,7 @@ public class RemoteTaskRunnerTestUtils
   static final String announcementsPath = String.format("%s/indexer/announcements", basePath);
   static final String tasksPath = String.format("%s/indexer/tasks", basePath);
   static final String statusPath = String.format("%s/indexer/status", basePath);
-  static final TaskLocation DUMMY_LOCATION = TaskLocation.create("dummy", 9000);
+  static final TaskLocation DUMMY_LOCATION = TaskLocation.create("dummy", 9000, -1);
 
   private TestingCluster testingCluster;
 
@@ -131,6 +131,7 @@ public class RemoteTaskRunnerTestUtils
   Worker makeWorker(final String workerId) throws Exception
   {
     Worker worker = new Worker(
+        "http",
         workerId,
         workerId,
         3,
@@ -150,7 +151,7 @@ public class RemoteTaskRunnerTestUtils
   {
     cf.setData().forPath(
         joiner.join(announcementsPath, worker.getHost()),
-        jsonMapper.writeValueAsBytes(new Worker(worker.getHost(), worker.getIp(), worker.getCapacity(), ""))
+        jsonMapper.writeValueAsBytes(new Worker(worker.getScheme(), worker.getHost(), worker.getIp(), worker.getCapacity(), ""))
     );
   }
 

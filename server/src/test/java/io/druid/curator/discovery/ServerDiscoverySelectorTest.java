@@ -53,6 +53,7 @@ public class ServerDiscoverySelectorTest
     EasyMock.expect(serviceProvider.getInstance()).andReturn(instance).anyTimes();
     EasyMock.expect(instance.getAddress()).andReturn(ADDRESS).anyTimes();
     EasyMock.expect(instance.getPort()).andReturn(PORT).anyTimes();
+    EasyMock.expect(instance.getSslPort()).andReturn(-1).anyTimes();
     EasyMock.replay(instance, serviceProvider);
     Server server = serverDiscoverySelector.pick();
     Assert.assertEquals(PORT, server.getPort());
@@ -83,6 +84,7 @@ public class ServerDiscoverySelectorTest
     EasyMock.expect(serviceProvider.getInstance()).andReturn(instance).anyTimes();
     EasyMock.expect(instance.getAddress()).andReturn(ADDRESS).anyTimes();
     EasyMock.expect(instance.getPort()).andReturn(PORT).anyTimes();
+    EasyMock.expect(instance.getSslPort()).andReturn(-1).anyTimes();
     EasyMock.replay(instance, serviceProvider);
     Server server = serverDiscoverySelector.pick();
     Assert.assertEquals(PORT, server.getPort());
@@ -113,6 +115,7 @@ public class ServerDiscoverySelectorTest
     EasyMock.expect(serviceProvider.getInstance()).andReturn(instance).anyTimes();
     EasyMock.expect(instance.getAddress()).andReturn(ADDRESS).anyTimes();
     EasyMock.expect(instance.getPort()).andReturn(PORT).anyTimes();
+    EasyMock.expect(instance.getSslPort()).andReturn(-1).anyTimes();
     EasyMock.replay(instance, serviceProvider);
     Server server = serverDiscoverySelector.pick();
     Assert.assertEquals(PORT, server.getPort());

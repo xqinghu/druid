@@ -51,7 +51,7 @@ public class CoordinatorRedirectInfo implements RedirectInfo
   }
 
   @Override
-  public URL getRedirectURL(String queryString, String requestURI)
+  public URL getRedirectURL(String scheme, String queryString, String requestURI)
   {
     try {
       final String leader = coordinator.getCurrentLeader();
@@ -59,7 +59,7 @@ public class CoordinatorRedirectInfo implements RedirectInfo
         return null;
       }
 
-      String location = String.format("http://%s%s", leader, requestURI);
+      String location = String.format("%s://%s%s", scheme, leader, requestURI);
 
       if (queryString != null) {
         location = String.format("%s?%s", location, queryString);
