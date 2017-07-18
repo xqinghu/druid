@@ -210,7 +210,7 @@ public class SqlBenchmark
   @OutputTimeUnit(TimeUnit.MILLISECONDS)
   public void queryPlanner(Blackhole blackhole) throws Exception
   {
-    try (final DruidPlanner planner = plannerFactory.createPlanner(null)) {
+    try (final DruidPlanner planner = plannerFactory.createPlanner(null, null)) {
       final PlannerResult plannerResult = planner.plan(sqlQuery);
       final ArrayList<Object[]> results = Sequences.toList(plannerResult.run(), Lists.<Object[]>newArrayList());
       blackhole.consume(results);

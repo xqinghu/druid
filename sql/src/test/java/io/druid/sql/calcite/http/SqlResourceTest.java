@@ -82,7 +82,14 @@ public class SqlResourceTest
     final ExprMacroTable macroTable = CalciteTests.createExprMacroTable();
     resource = new SqlResource(
         JSON_MAPPER,
-        new PlannerFactory(rootSchema, walker, operatorTable, macroTable, plannerConfig, new ServerConfig())
+        new PlannerFactory(
+            rootSchema,
+            CalciteTests.createMockQueryLifecycleFactory(walker),
+            operatorTable,
+            macroTable,
+            plannerConfig,
+            new ServerConfig()
+        )
     );
   }
 
