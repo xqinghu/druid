@@ -166,6 +166,16 @@ public class QueryResourceTest
   @Test
   public void testGoodQuery() throws IOException
   {
+    EasyMock.expect(testServletRequest.getAttribute(EasyMock.anyString())).andReturn(
+        new AuthorizationInfo()
+        {
+          @Override
+          public Access isAuthorized(Resource resource, Action action)
+          {
+            return new Access(true);
+          }
+        }
+    ).times(1);
     EasyMock.replay(testServletRequest);
     Response response = queryResource.doPost(
         new ByteArrayInputStream(simpleTimeSeriesQuery.getBytes("UTF-8")),
