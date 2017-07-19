@@ -49,7 +49,7 @@ public class PlannerFactory
       .setConformance(DruidConformance.instance())
       .build();
 
-  private final SchemaPlus rootSchema;
+  private final DruidSchema druidSchema;
   private final QueryLifecycleFactory queryLifecycleFactory;
   private final DruidOperatorTable operatorTable;
   private final ExprMacroTable macroTable;
@@ -58,7 +58,7 @@ public class PlannerFactory
 
   @Inject
   public PlannerFactory(
-      final SchemaPlus rootSchema,
+      final DruidSchema druidSchema,
       final QueryLifecycleFactory queryLifecycleFactory,
       final DruidOperatorTable operatorTable,
       final ExprMacroTable macroTable,
@@ -66,7 +66,7 @@ public class PlannerFactory
       final ServerConfig serverConfig
   )
   {
-    this.rootSchema = rootSchema;
+    this.druidSchema = druidSchema;
     this.queryLifecycleFactory = queryLifecycleFactory;
     this.operatorTable = operatorTable;
     this.macroTable = macroTable;
@@ -76,12 +76,12 @@ public class PlannerFactory
 
   public DruidPlanner createPlanner(final Map<String, Object> queryContext)
   {
+    final SchemaPlus rootSchema = Calcites.createRootSchema(druidSchema);
     final PlannerContext plannerContext = PlannerContext.create(operatorTable, macroTable, plannerConfig, queryContext);
     final QueryMaker queryMaker = new QueryMaker(queryLifecycleFactory, plannerContext, serverConfig);
     final FrameworkConfig frameworkConfig = Frameworks
         .newConfigBuilder()
         .parserConfig(PARSER_CONFIG)
-        .defaultSchema(rootSchema)
         .traitDefs(ConventionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE)
         .convertletTable(new DruidConvertletTable(plannerContext))
         .operatorTable(operatorTable)

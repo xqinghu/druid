@@ -39,6 +39,7 @@ import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.planner.PlannerFactory;
+import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.QueryLogHook;
 import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
@@ -46,7 +47,6 @@ import org.apache.calcite.avatica.AvaticaClientRuntimeException;
 import org.apache.calcite.avatica.Meta;
 import org.apache.calcite.avatica.MissingResultsException;
 import org.apache.calcite.avatica.NoSuchStatementException;
-import org.apache.calcite.schema.SchemaPlus;
 import org.eclipse.jetty.server.Server;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -116,17 +116,12 @@ public class DruidAvaticaHandlerTest
     Calcites.setSystemProperties();
     walker = CalciteTests.createMockWalker(temporaryFolder.newFolder());
     final PlannerConfig plannerConfig = new PlannerConfig();
-    final SchemaPlus rootSchema = Calcites.createRootSchema(
-        CalciteTests.createMockSchema(
-            walker,
-            plannerConfig
-        )
-    );
+    final DruidSchema druidSchema = CalciteTests.createMockSchema(walker, plannerConfig);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     final ExprMacroTable macroTable = CalciteTests.createExprMacroTable();
     druidMeta = new DruidMeta(
         new PlannerFactory(
-            rootSchema,
+            druidSchema,
             CalciteTests.createMockQueryLifecycleFactory(walker),
             operatorTable,
             macroTable,
@@ -551,19 +546,14 @@ public class DruidAvaticaHandlerTest
     };
 
     final PlannerConfig plannerConfig = new PlannerConfig();
-    final SchemaPlus rootSchema = Calcites.createRootSchema(
-        CalciteTests.createMockSchema(
-            walker,
-            plannerConfig
-        )
-    );
+    final DruidSchema druidSchema = CalciteTests.createMockSchema(walker, plannerConfig);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     final ExprMacroTable macroTable = CalciteTests.createExprMacroTable();
 
     final List<Meta.Frame> frames = new ArrayList<>();
     DruidMeta smallFrameDruidMeta = new DruidMeta(
         new PlannerFactory(
-            rootSchema,
+            druidSchema,
             CalciteTests.createMockQueryLifecycleFactory(walker),
             operatorTable,
             macroTable,
