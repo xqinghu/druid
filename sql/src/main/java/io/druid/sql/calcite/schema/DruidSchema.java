@@ -44,13 +44,12 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
 import io.druid.java.util.common.lifecycle.LifecycleStop;
-import io.druid.query.QueryPlus;
-import io.druid.query.QuerySegmentWalker;
 import io.druid.query.TableDataSource;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.segment.column.ValueType;
+import io.druid.server.QueryLifecycleFactory;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -79,7 +78,7 @@ public class DruidSchema extends AbstractSchema
 
   private static final EmittingLogger log = new EmittingLogger(DruidSchema.class);
 
-  private final QuerySegmentWalker walker;
+  private final QueryLifecycleFactory queryLifecycleFactory;
   private final TimelineServerView serverView;
   private final PlannerConfig config;
   private final ViewManager viewManager;
@@ -101,14 +100,14 @@ public class DruidSchema extends AbstractSchema
 
   @Inject
   public DruidSchema(
-      final QuerySegmentWalker walker,
+      final QueryLifecycleFactory queryLifecycleFactory,
       final TimelineServerView serverView,
       final PlannerConfig config,
       final ViewManager viewManager,
       final ServerConfig serverConfig
   )
   {
-    this.walker = Preconditions.checkNotNull(walker, "walker");
+    this.queryLifecycleFactory = Preconditions.checkNotNull(queryLifecycleFactory, "queryLifecycleFactory");
     this.serverView = Preconditions.checkNotNull(serverView, "serverView");
     this.config = Preconditions.checkNotNull(config, "config");
     this.viewManager = Preconditions.checkNotNull(viewManager, "viewManager");
@@ -317,14 +316,9 @@ public class DruidSchema extends AbstractSchema
         serverConfig
     );
 
-    final Sequence<SegmentAnalysis> sequence = QueryPlus.wrap(segmentMetadataQuery)
-                                                        .run(
-                                                            walker,
-                                                            DirectDruidClient.makeResponseContextForQuery(
-                                                                segmentMetadataQuery,
-                                                                System.currentTimeMillis()
-                                                            )
-                                                        );
+    final Sequence<SegmentAnalysis> sequence = queryLifecycleFactory.factorize()
+                                                                    .runSimple(segmentMetadataQuery, null, null);
+
     final List<SegmentAnalysis> results = Sequences.toList(sequence, Lists.<SegmentAnalysis>newArrayList());
     if (results.isEmpty()) {
       return null;

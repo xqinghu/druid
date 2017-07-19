@@ -141,7 +141,7 @@ public class DruidSchemaTest
     );
 
     schema = new DruidSchema(
-        walker,
+        CalciteTests.createMockQueryLifecycleFactory(walker),
         new TestServerInventoryView(walker.getSegments()),
         PLANNER_CONFIG_DEFAULT,
         new NoopViewManager(),

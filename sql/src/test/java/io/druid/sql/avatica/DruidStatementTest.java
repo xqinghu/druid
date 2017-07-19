@@ -70,7 +70,7 @@ public class DruidStatementTest
     final ExprMacroTable macroTable = CalciteTests.createExprMacroTable();
     plannerFactory = new PlannerFactory(
         rootSchema,
-        walker,
+        CalciteTests.createMockQueryLifecycleFactory(walker),
         operatorTable,
         macroTable,
         plannerConfig,

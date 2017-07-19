@@ -138,7 +138,7 @@ public class QuantileSqlAggregatorTest
     );
     plannerFactory = new PlannerFactory(
         rootSchema,
-        walker,
+        CalciteTests.createMockQueryLifecycleFactory(walker),
         operatorTable,
         CalciteTests.createExprMacroTable(),
         plannerConfig,

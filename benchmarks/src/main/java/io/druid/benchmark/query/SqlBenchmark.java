@@ -146,7 +146,7 @@ public class SqlBenchmark
     };
     plannerFactory = new PlannerFactory(
         Calcites.createRootSchema(druidSchema),
-        walker,
+        CalciteTests.createMockQueryLifecycleFactory(walker),
         CalciteTests.createOperatorTable(),
         CalciteTests.createExprMacroTable(),
         plannerConfig,

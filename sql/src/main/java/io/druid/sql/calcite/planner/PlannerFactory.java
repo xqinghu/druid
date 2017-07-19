@@ -21,7 +21,7 @@ package io.druid.sql.calcite.planner;
 
 import com.google.inject.Inject;
 import io.druid.math.expr.ExprMacroTable;
-import io.druid.query.QuerySegmentWalker;
+import io.druid.server.QueryLifecycleFactory;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.schema.DruidSchema;
@@ -50,7 +50,7 @@ public class PlannerFactory
       .build();
 
   private final SchemaPlus rootSchema;
-  private final QuerySegmentWalker walker;
+  private final QueryLifecycleFactory queryLifecycleFactory;
   private final DruidOperatorTable operatorTable;
   private final ExprMacroTable macroTable;
   private final PlannerConfig plannerConfig;
@@ -59,7 +59,7 @@ public class PlannerFactory
   @Inject
   public PlannerFactory(
       final SchemaPlus rootSchema,
-      final QuerySegmentWalker walker,
+      final QueryLifecycleFactory queryLifecycleFactory,
       final DruidOperatorTable operatorTable,
       final ExprMacroTable macroTable,
       final PlannerConfig plannerConfig,
@@ -67,7 +67,7 @@ public class PlannerFactory
   )
   {
     this.rootSchema = rootSchema;
-    this.walker = walker;
+    this.queryLifecycleFactory = queryLifecycleFactory;
     this.operatorTable = operatorTable;
     this.macroTable = macroTable;
     this.plannerConfig = plannerConfig;
@@ -77,7 +77,7 @@ public class PlannerFactory
   public DruidPlanner createPlanner(final Map<String, Object> queryContext)
   {
     final PlannerContext plannerContext = PlannerContext.create(operatorTable, macroTable, plannerConfig, queryContext);
-    final QueryMaker queryMaker = new QueryMaker(walker, plannerContext, serverConfig);
+    final QueryMaker queryMaker = new QueryMaker(queryLifecycleFactory, plannerContext, serverConfig);
     final FrameworkConfig frameworkConfig = Frameworks
         .newConfigBuilder()
         .parserConfig(PARSER_CONFIG)
