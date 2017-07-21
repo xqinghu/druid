@@ -156,6 +156,7 @@ public class RowBasedGrouperHelper
           querySpecificConfig.getBufferGrouperMaxSize(),
           querySpecificConfig.getBufferGrouperMaxLoadFactor(),
           querySpecificConfig.getBufferGrouperInitialBuckets(),
+          querySpecificConfig.isConcurrentGrouperThreadLocal(),
           temporaryStorage,
           spillMapper,
           concurrencyHint,

@@ -34,6 +34,7 @@ public class GroupByQueryConfig
   private static final String CTX_KEY_BUFFER_GROUPER_INITIAL_BUCKETS = "bufferGrouperInitialBuckets";
   private static final String CTX_KEY_BUFFER_GROUPER_MAX_LOAD_FACTOR = "bufferGrouperMaxLoadFactor";
   private static final String CTX_KEY_BUFFER_GROUPER_MAX_SIZE = "bufferGrouperMaxSize";
+  private static final String CTX_KEY_CONCURRENT_GROUPER_THREAD_LOCAL = "concurrentGrouperThreadLocal";
   private static final String CTX_KEY_MAX_ON_DISK_STORAGE = "maxOnDiskStorage";
   private static final String CTX_KEY_MAX_MERGING_DICTIONARY_SIZE = "maxMergingDictionarySize";
   private static final String CTX_KEY_FORCE_HASH_AGGREGATION = "forceHashAggregation";
@@ -59,6 +60,9 @@ public class GroupByQueryConfig
 
   @JsonProperty
   private int bufferGrouperInitialBuckets = 0;
+
+  @JsonProperty
+  private boolean concurrentGrouperThreadLocal = false;
 
   @JsonProperty
   // Size of on-heap string dictionary for merging, per-query; when exceeded, partial results will be spilled to disk
@@ -124,6 +128,11 @@ public class GroupByQueryConfig
     return bufferGrouperInitialBuckets;
   }
 
+  public boolean isConcurrentGrouperThreadLocal()
+  {
+    return concurrentGrouperThreadLocal;
+  }
+
   public long getMaxMergingDictionarySize()
   {
     return maxMergingDictionarySize;
@@ -168,6 +177,10 @@ public class GroupByQueryConfig
     newConfig.bufferGrouperInitialBuckets = query.getContextValue(
         CTX_KEY_BUFFER_GROUPER_INITIAL_BUCKETS,
         getBufferGrouperInitialBuckets()
+    );
+    newConfig.concurrentGrouperThreadLocal = query.getContextBoolean(
+        CTX_KEY_CONCURRENT_GROUPER_THREAD_LOCAL,
+        isConcurrentGrouperThreadLocal()
     );
     newConfig.maxOnDiskStorage = Math.min(
         ((Number) query.getContextValue(CTX_KEY_MAX_ON_DISK_STORAGE, getMaxOnDiskStorage())).longValue(),

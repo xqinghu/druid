@@ -39,10 +39,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Grouper based around a set of underlying {@link SpillingGrouper} instances. Thread-safe.
  * <p>
  * The passed-in buffer is cut up into concurrencyHint slices, and each slice is passed to a different underlying
- * grouper. Access to each slice is separately synchronized. As long as the result set fits in memory, keys are
- * partitioned between buffers based on their hash, and multiple threads can write into the same buffer. When
- * it becomes clear that the result set does not fit in memory, the table switches to a mode where each thread
- * gets its own buffer and its own spill files on disk.
+ * grouper.
+ * <p>>
+ * If concurrentGrouperThreadLocal is false, access to each slice is separately synchronized. As long as the result
+ * set fits in memory, keys are partitioned between buffers based on their hash, and multiple threads can write into
+ * the same buffer. When it becomes clear that the result set does not fit in memory, the table switches to a mode
+ * where each thread gets its own buffer and its own spill files on disk.
+ * <p>
+ * If concurrentGrouperThreadLocal is true, buffers are always thread local. This reduces contention but also makes
+ * it more likely that spilling to disk will be necessary.
  */
 public class ConcurrentGrouper<KeyType> implements Grouper<KeyType>
 {
@@ -59,6 +64,7 @@ public class ConcurrentGrouper<KeyType> implements Grouper<KeyType>
   private final int bufferGrouperMaxSize;
   private final float bufferGrouperMaxLoadFactor;
   private final int bufferGrouperInitialBuckets;
+  private final boolean concurrentGrouperThreadLocal;
   private final LimitedTemporaryStorage temporaryStorage;
   private final ObjectMapper spillMapper;
   private final int concurrencyHint;
@@ -76,6 +82,7 @@ public class ConcurrentGrouper<KeyType> implements Grouper<KeyType>
       final int bufferGrouperMaxSize,
       final float bufferGrouperMaxLoadFactor,
       final int bufferGrouperInitialBuckets,
+      final boolean concurrentGrouperThreadLocal,
       final LimitedTemporaryStorage temporaryStorage,
       final ObjectMapper spillMapper,
       final int concurrencyHint,
@@ -86,21 +93,14 @@ public class ConcurrentGrouper<KeyType> implements Grouper<KeyType>
     Preconditions.checkArgument(concurrencyHint > 0, "concurrencyHint > 0");
 
     this.groupers = new ArrayList<>(concurrencyHint);
-    this.threadLocalGrouper = new ThreadLocal<SpillingGrouper<KeyType>>()
-    {
-      @Override
-      protected SpillingGrouper<KeyType> initialValue()
-      {
-        return groupers.get(threadNumber.getAndIncrement());
-      }
-    };
-
+    this.threadLocalGrouper = ThreadLocal.withInitial(() -> groupers.get(threadNumber.getAndIncrement()));
     this.bufferSupplier = bufferSupplier;
     this.columnSelectorFactory = columnSelectorFactory;
     this.aggregatorFactories = aggregatorFactories;
     this.bufferGrouperMaxSize = bufferGrouperMaxSize;
     this.bufferGrouperMaxLoadFactor = bufferGrouperMaxLoadFactor;
     this.bufferGrouperInitialBuckets = bufferGrouperInitialBuckets;
+    this.concurrentGrouperThreadLocal = concurrentGrouperThreadLocal;
     this.temporaryStorage = temporaryStorage;
     this.spillMapper = spillMapper;
     this.concurrencyHint = concurrencyHint;
@@ -164,7 +164,7 @@ public class ConcurrentGrouper<KeyType> implements Grouper<KeyType>
       throw new ISE("Grouper is closed");
     }
 
-    if (!spilling) {
+    if (!concurrentGrouperThreadLocal && !spilling) {
       final SpillingGrouper<KeyType> hashBasedGrouper = groupers.get(grouperNumberForKeyHash(keyHash));
 
       synchronized (hashBasedGrouper) {
@@ -178,7 +178,8 @@ public class ConcurrentGrouper<KeyType> implements Grouper<KeyType>
       }
     }
 
-    // At this point we know spilling = true
+    // At this point we are definitely in thread local mode. Either spilling or concurrentGrouperThreadLocal is true.
+    assert spilling || concurrentGrouperThreadLocal;
     final SpillingGrouper<KeyType> tlGrouper = threadLocalGrouper.get();
 
     synchronized (tlGrouper) {

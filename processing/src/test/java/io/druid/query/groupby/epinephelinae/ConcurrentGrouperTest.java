@@ -198,6 +198,7 @@ public class ConcurrentGrouperTest
         24,
         0.7f,
         1,
+        false,
         null,
         null,
         8,
