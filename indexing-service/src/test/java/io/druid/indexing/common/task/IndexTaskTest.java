@@ -146,8 +146,7 @@ public class IndexTaskTest
             createTuningConfig(2, null, false, true),
             false
         ),
-        null,
-        jsonMapper
+        null
     );
 
     final List<DataSegment> segments = runTask(indexTask);
@@ -156,13 +155,13 @@ public class IndexTaskTest
 
     Assert.assertEquals("test", segments.get(0).getDataSource());
     Assert.assertEquals(new Interval("2014/P1D"), segments.get(0).getInterval());
-    Assert.assertTrue(segments.get(0).getShardSpec().getClass().equals(HashBasedNumberedShardSpec.class));
+    Assert.assertEquals(HashBasedNumberedShardSpec.class, segments.get(0).getShardSpec().getClass());
     Assert.assertEquals(0, segments.get(0).getShardSpec().getPartitionNum());
     Assert.assertEquals(2, ((NumberedShardSpec) segments.get(0).getShardSpec()).getPartitions());
 
     Assert.assertEquals("test", segments.get(1).getDataSource());
     Assert.assertEquals(new Interval("2014/P1D"), segments.get(1).getInterval());
-    Assert.assertTrue(segments.get(1).getShardSpec().getClass().equals(HashBasedNumberedShardSpec.class));
+    Assert.assertEquals(HashBasedNumberedShardSpec.class, segments.get(1).getShardSpec().getClass());
     Assert.assertEquals(1, segments.get(1).getShardSpec().getPartitionNum());
     Assert.assertEquals(2, ((NumberedShardSpec) segments.get(1).getShardSpec()).getPartitions());
   }
@@ -190,9 +189,10 @@ public class IndexTaskTest
             createTuningConfig(2, null, true, false),
             false
         ),
-        null,
-        jsonMapper
+        null
     );
+
+    Assert.assertEquals(indexTask.getId(), indexTask.getGroupId());
 
     final List<DataSegment> segments = runTask(indexTask);
 
@@ -200,12 +200,12 @@ public class IndexTaskTest
 
     Assert.assertEquals("test", segments.get(0).getDataSource());
     Assert.assertEquals(new Interval("2014/P1D"), segments.get(0).getInterval());
-    Assert.assertTrue(segments.get(0).getShardSpec().getClass().equals(NumberedShardSpec.class));
+    Assert.assertEquals(NumberedShardSpec.class, segments.get(0).getShardSpec().getClass());
     Assert.assertEquals(0, segments.get(0).getShardSpec().getPartitionNum());
 
     Assert.assertEquals("test", segments.get(1).getDataSource());
     Assert.assertEquals(new Interval("2014/P1D"), segments.get(1).getInterval());
-    Assert.assertTrue(segments.get(1).getShardSpec().getClass().equals(NumberedShardSpec.class));
+    Assert.assertEquals(NumberedShardSpec.class, segments.get(1).getShardSpec().getClass());
     Assert.assertEquals(1, segments.get(1).getShardSpec().getPartitionNum());
   }
 
@@ -235,8 +235,7 @@ public class IndexTaskTest
             createTuningConfig(10, null, false, true),
             false
         ),
-        null,
-        jsonMapper
+        null
     );
 
     List<DataSegment> segments = runTask(indexTask);
@@ -270,8 +269,7 @@ public class IndexTaskTest
             createTuningConfig(50, null, false, true),
             false
         ),
-        null,
-        jsonMapper
+        null
     );
 
     final List<DataSegment> segments = runTask(indexTask);
@@ -301,8 +299,7 @@ public class IndexTaskTest
             createTuningConfig(null, 1, false, true),
             false
         ),
-        null,
-        jsonMapper
+        null
     );
 
     final List<DataSegment> segments = runTask(indexTask);
@@ -338,9 +335,10 @@ public class IndexTaskTest
             createTuningConfig(2, null, false, false),
             true
         ),
-        null,
-        jsonMapper
+        null
     );
+
+    Assert.assertEquals("index_append_test", indexTask.getGroupId());
 
     final List<DataSegment> segments = runTask(indexTask);
 
@@ -384,8 +382,7 @@ public class IndexTaskTest
             createTuningConfig(2, null, false, true),
             false
         ),
-        null,
-        jsonMapper
+        null
     );
 
     final List<DataSegment> segments = runTask(indexTask);
@@ -445,8 +442,7 @@ public class IndexTaskTest
             createTuningConfig(2, null, false, true),
             false
         ),
-        null,
-        jsonMapper
+        null
     );
 
     final List<DataSegment> segments = runTask(indexTask);
@@ -495,8 +491,7 @@ public class IndexTaskTest
             createTuningConfig(2, null, false, true),
             false
         ),
-        null,
-        jsonMapper
+        null
     );
 
     final List<DataSegment> segments = runTask(indexTask);
@@ -540,8 +535,7 @@ public class IndexTaskTest
             createTuningConfig(2, 2, 2, null, false, false, true),
             false
         ),
-        null,
-        jsonMapper
+        null
     );
 
     final List<DataSegment> segments = runTask(indexTask);
@@ -555,7 +549,7 @@ public class IndexTaskTest
 
       Assert.assertEquals("test", segment.getDataSource());
       Assert.assertEquals(expectedInterval, segment.getInterval());
-      Assert.assertTrue(segment.getShardSpec().getClass().equals(NumberedShardSpec.class));
+      Assert.assertEquals(NumberedShardSpec.class, segment.getShardSpec().getClass());
       Assert.assertEquals(expectedPartitionNum, segment.getShardSpec().getPartitionNum());
     }
   }
@@ -583,8 +577,7 @@ public class IndexTaskTest
             createTuningConfig(3, 2, 2, null, false, true, true),
             false
         ),
-        null,
-        jsonMapper
+        null
     );
 
     final List<DataSegment> segments = runTask(indexTask);
@@ -625,8 +618,7 @@ public class IndexTaskTest
             createTuningConfig(3, 2, 2, null, false, false, true),
             false
         ),
-        null,
-        jsonMapper
+        null
     );
 
     final List<DataSegment> segments = runTask(indexTask);
@@ -639,7 +631,7 @@ public class IndexTaskTest
 
       Assert.assertEquals("test", segment.getDataSource());
       Assert.assertEquals(expectedInterval, segment.getInterval());
-      Assert.assertTrue(segment.getShardSpec().getClass().equals(NumberedShardSpec.class));
+      Assert.assertEquals(NumberedShardSpec.class, segment.getShardSpec().getClass());
       Assert.assertEquals(i, segment.getShardSpec().getPartitionNum());
     }
   }
@@ -701,8 +693,7 @@ public class IndexTaskTest
         null,
         null,
         parseExceptionIgnoreSpec,
-        null,
-        jsonMapper
+        null
     );
 
     final List<DataSegment> segments = runTask(indexTask);
@@ -755,8 +746,7 @@ public class IndexTaskTest
         null,
         null,
         parseExceptionIgnoreSpec,
-        null,
-        jsonMapper
+        null
     );
 
     runTask(indexTask);
@@ -815,8 +805,7 @@ public class IndexTaskTest
         null,
         null,
         parseExceptionIgnoreSpec,
-        null,
-        jsonMapper
+        null
     );
 
     final List<DataSegment> segments = runTask(indexTask);
@@ -886,8 +875,7 @@ public class IndexTaskTest
         null,
         null,
         parseExceptionIgnoreSpec,
-        null,
-        jsonMapper
+        null
     );
 
     runTask(indexTask);
