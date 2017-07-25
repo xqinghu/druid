@@ -33,7 +33,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.java.util.common.Pair;
 import io.druid.math.expr.ExprMacroTable;
 import io.druid.server.DruidNode;
-import io.druid.server.initialization.ServerConfig;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -119,7 +118,13 @@ public class DruidAvaticaHandlerTest
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     final ExprMacroTable macroTable = CalciteTests.createExprMacroTable();
     druidMeta = new DruidMeta(
-        new PlannerFactory(druidSchema, walker, operatorTable, macroTable, plannerConfig, new ServerConfig()),
+        new PlannerFactory(
+            druidSchema,
+            CalciteTests.createMockQueryLifecycleFactory(walker),
+            operatorTable,
+            macroTable,
+            plannerConfig
+        ),
         AVATICA_CONFIG
     );
     final DruidAvaticaHandler handler = new DruidAvaticaHandler(
@@ -544,7 +549,13 @@ public class DruidAvaticaHandlerTest
 
     final List<Meta.Frame> frames = new ArrayList<>();
     DruidMeta smallFrameDruidMeta = new DruidMeta(
-        new PlannerFactory(druidSchema, walker, operatorTable, macroTable, plannerConfig, new ServerConfig()),
+        new PlannerFactory(
+            druidSchema,
+            CalciteTests.createMockQueryLifecycleFactory(walker),
+            operatorTable,
+            macroTable,
+            plannerConfig
+        ),
         smallFrameConfig
     )
     {
