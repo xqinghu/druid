@@ -109,6 +109,18 @@ public class QueryInterruptedException extends RuntimeException
     return host;
   }
 
+  @Override
+  public String toString()
+  {
+    return String.format(
+        "QueryInterruptedException{msg=%s, code=%s, class=%s, host=%s}",
+        getMessage(),
+        errorCode,
+        errorClass,
+        host
+    );
+  }
+
   private static String getErrorCodeFromThrowable(Throwable e)
   {
     if (e instanceof QueryInterruptedException) {
