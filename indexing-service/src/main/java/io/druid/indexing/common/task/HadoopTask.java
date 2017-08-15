@@ -25,7 +25,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.inject.Injector;
-
 import io.druid.guice.ExtensionsConfig;
 import io.druid.guice.GuiceInjectors;
 import io.druid.indexing.common.TaskToolbox;
@@ -143,7 +142,7 @@ public abstract class HadoopTask extends AbstractTask
     );
 
     for (final File extension : Initialization.getExtensionFilesToLoad(extensionsConfig)) {
-      final ClassLoader extensionLoader = Initialization.getClassLoaderForExtension(extension);
+      final ClassLoader extensionLoader = Initialization.getClassLoaderForExtension(extension, false);
       jobURLs.addAll(Arrays.asList(((URLClassLoader) extensionLoader).getURLs()));
     }
 
@@ -155,7 +154,7 @@ public abstract class HadoopTask extends AbstractTask
             finalHadoopDependencyCoordinates,
             extensionsConfig
         )) {
-      final ClassLoader hadoopLoader = Initialization.getClassLoaderForExtension(hadoopDependency);
+      final ClassLoader hadoopLoader = Initialization.getClassLoaderForExtension(hadoopDependency, false);
       localClassLoaderURLs.addAll(Arrays.asList(((URLClassLoader) hadoopLoader).getURLs()));
     }
 
