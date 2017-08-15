@@ -168,7 +168,10 @@ public class Initialization
       for (File extension : getExtensionFilesToLoad(extensionsConfig)) {
         log.info("Loading extension [%s] for class [%s]", extension.getName(), serviceClass);
         try {
-          final URLClassLoader loader = getClassLoaderForExtension(extension);
+          final URLClassLoader loader = getClassLoaderForExtension(
+              extension,
+              extensionsConfig.isUseExtensionClassloaderFirst()
+          );
           ServiceLoader.load(serviceClass, loader).forEach(impl -> tryAdd(impl, "local file system"));
         }
         catch (Exception e) {
@@ -286,22 +289,39 @@ public class Initialization
    *
    * @throws MalformedURLException
    */
-  public static URLClassLoader getClassLoaderForExtension(File extension) throws MalformedURLException
+  public static URLClassLoader getClassLoaderForExtension(File extension, boolean useExtensionClassloaderFirst)
   {
-    URLClassLoader loader = loadersMap.get(extension);
-    if (loader == null) {
-      final Collection<File> jars = FileUtils.listFiles(extension, new String[]{"jar"}, false);
-      final URL[] urls = new URL[jars.size()];
+    return loadersMap.computeIfAbsent(
+        extension,
+        theExtension -> makeClassLoaderForExtension(theExtension, useExtensionClassloaderFirst)
+    );
+  }
+
+  private static URLClassLoader makeClassLoaderForExtension(
+      final File extension,
+      final boolean useExtensionClassloaderFirst
+  )
+  {
+    final Collection<File> jars = FileUtils.listFiles(extension, new String[]{"jar"}, false);
+    final URL[] urls = new URL[jars.size()];
+
+    try {
       int i = 0;
       for (File jar : jars) {
         final URL url = jar.toURI().toURL();
-        log.info("added URL[%s]", url);
+        log.info("added URL[%s] for extension[%s]", url, extension.getName());
         urls[i++] = url;
       }
-      loadersMap.putIfAbsent(extension, new URLClassLoader(urls, Initialization.class.getClassLoader()));
-      loader = loadersMap.get(extension);
     }
-    return loader;
+    catch (MalformedURLException e) {
+      throw new RuntimeException(e);
+    }
+
+    if (useExtensionClassloaderFirst) {
+      return new ExtensionFirstClassLoader(urls, Initialization.class.getClassLoader());
+    } else {
+      return new URLClassLoader(urls, Initialization.class.getClassLoader());
+    }
   }
 
   public static List<URL> getURLsForClasspath(String cp)
