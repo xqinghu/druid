@@ -43,6 +43,7 @@ import io.druid.common.guava.FileOutputSupplier;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.SerializerUtils;
+import io.druid.java.util.common.ByteBufferUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
@@ -53,6 +54,7 @@ import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.io.Closer;
 import io.druid.java.util.common.io.smoosh.Smoosh;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnCapabilitiesImpl;
@@ -1240,19 +1242,6 @@ public class IndexMerger
     }
   }
 
-  public static boolean isNullColumn(Iterable<String> dimValues)
-  {
-    if (dimValues == null) {
-      return true;
-    }
-    for (String val : dimValues) {
-      if (val != null) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   private void writeMetadataToFile(File metadataFile, Metadata metadata) throws IOException
   {
     try (FileOutputStream metadataFileOutputStream = new FileOutputStream(metadataFile);
@@ -1266,9 +1255,10 @@ public class IndexMerger
     IndexIO.checkFileSize(metadataFile);
   }
 
-  static class DictionaryMergeIterator implements Iterator<String>
+  class DictionaryMergeIterator implements CloseableIterator<String>
   {
     protected final IntBuffer[] conversions;
+    protected final List<Pair<ByteBuffer, Integer>> directBufferAllocations = Lists.newArrayList();
     protected final PriorityQueue<Pair<Integer, PeekingIterator<String>>> pQueue;
 
     protected int counter;
@@ -1294,8 +1284,10 @@ public class IndexMerger
         Indexed<String> indexed = dimValueLookups[i];
         if (useDirect) {
           int allocationSize = indexed.size() * Ints.BYTES;
-          log.info("Allocating dictionary merging direct buffer with size[%d]", allocationSize);
-          conversions[i] = ByteBuffer.allocateDirect(allocationSize).asIntBuffer();
+          log.info("Allocating dictionary merging direct buffer with size[%,d]", allocationSize);
+          final ByteBuffer conversionDirectBuffer = ByteBuffer.allocateDirect(allocationSize);
+          conversions[i] = conversionDirectBuffer.asIntBuffer();
+          directBufferAllocations.add(new Pair<>(conversionDirectBuffer, allocationSize));
         } else {
           conversions[i] = IntBuffer.allocate(indexed.size());
         }
@@ -1372,6 +1364,15 @@ public class IndexMerger
     public void remove()
     {
       throw new UnsupportedOperationException("remove");
+    }
+    
+    @Override
+    public void close()
+    {
+      for (Pair<ByteBuffer, Integer> bufferAllocation : directBufferAllocations) {
+        log.info("Freeing dictionary merging direct buffer with size[%,d]", bufferAllocation.rhs);
+        ByteBufferUtils.free(bufferAllocation.lhs);
+      }
     }
   }
 }
