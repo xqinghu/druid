@@ -78,6 +78,8 @@ import java.util.Set;
 // this class contains shared code between GroupByMergingQueryRunnerV2 and GroupByRowProcessor
 public class RowBasedGrouperHelper
 {
+  private static final int SINGLE_THREAD_CONCURRENCY_HINT = -1;
+
   /**
    * If isInputRaw is true, transformations such as timestamp truncation and extraction functions have not
    * been applied to the input rows yet, for example, in a nested query, if an extraction function is being
@@ -92,7 +94,8 @@ public class RowBasedGrouperHelper
       final int concurrencyHint,
       final LimitedTemporaryStorage temporaryStorage,
       final ObjectMapper spillMapper,
-      final AggregatorFactory[] aggregatorFactories
+      final AggregatorFactory[] aggregatorFactories,
+      final int mergeBufferSize
   )
   {
     // concurrencyHint >= 1 for concurrent groupers, -1 for single-threaded
@@ -145,7 +148,8 @@ public class RowBasedGrouperHelper
           spillMapper,
           true,
           limitSpec,
-          sortHasNonGroupingFields
+          sortHasNonGroupingFields,
+          mergeBufferSize
       );
     } else {
       grouper = new ConcurrentGrouper<>(
@@ -160,7 +164,8 @@ public class RowBasedGrouperHelper
           spillMapper,
           concurrencyHint,
           limitSpec,
-          sortHasNonGroupingFields
+          sortHasNonGroupingFields,
+          mergeBufferSize
       );
     }
 

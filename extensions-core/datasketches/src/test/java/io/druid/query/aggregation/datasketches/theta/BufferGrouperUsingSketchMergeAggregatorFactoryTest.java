@@ -54,7 +54,8 @@ public class BufferGrouperUsingSketchMergeAggregatorFactoryTest
         },
         Integer.MAX_VALUE,
         0.75f,
-        initialBuckets
+        initialBuckets,
+        true
     );
     grouper.init();
     return grouper;

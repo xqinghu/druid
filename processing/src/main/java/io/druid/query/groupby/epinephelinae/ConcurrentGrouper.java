@@ -80,7 +80,8 @@ public class ConcurrentGrouper<KeyType> implements Grouper<KeyType>
       final ObjectMapper spillMapper,
       final int concurrencyHint,
       final DefaultLimitSpec limitSpec,
-      final boolean sortHasNonGroupingFields
+      final boolean sortHasNonGroupingFields,
+      final int mergeBufferSize
   )
   {
     Preconditions.checkArgument(concurrencyHint > 0, "concurrencyHint > 0");
@@ -135,7 +136,8 @@ public class ConcurrentGrouper<KeyType> implements Grouper<KeyType>
                 spillMapper,
                 false,
                 limitSpec,
-                sortHasNonGroupingFields
+                sortHasNonGroupingFields,
+                sliceSize
             );
             grouper.init();
             groupers.add(grouper);
