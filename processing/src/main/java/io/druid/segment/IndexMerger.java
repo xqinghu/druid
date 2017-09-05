@@ -1255,7 +1255,7 @@ public class IndexMerger
     IndexIO.checkFileSize(metadataFile);
   }
 
-  class DictionaryMergeIterator implements CloseableIterator<String>
+  static class DictionaryMergeIterator implements CloseableIterator<String>
   {
     protected final IntBuffer[] conversions;
     protected final List<Pair<ByteBuffer, Integer>> directBufferAllocations = Lists.newArrayList();

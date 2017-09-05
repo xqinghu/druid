@@ -92,11 +92,7 @@ public class SpillingGrouper<KeyType> implements Grouper<KeyType>
     this.keyObjComparator = keySerdeFactory.objectComparator(false);
     this.defaultOrderKeyObjComparator = keySerdeFactory.objectComparator(true);
     if (limitSpec != null) {
-<<<<<<< HEAD
-      this.grouper = new LimitedBufferGrouper<>(
-=======
-      LimitedBufferHashGrouper<KeyType> limitGrouper = new LimitedBufferHashGrouper<>(
->>>>>>> 1095382ad... Fix GroupBy limit push down error when buffer is too small
+      LimitedBufferGrouper<KeyType> limitGrouper = new LimitedBufferGrouper<>(
           bufferSupplier,
           keySerde,
           columnSelectorFactory,
@@ -119,7 +115,7 @@ public class SpillingGrouper<KeyType> implements Grouper<KeyType>
         // with lexicographic ascending order.
         // If sortHasNonGroupingFields is false, then the OrderBy fields are all in the grouping key, so we
         // can use that ordering.
-        this.grouper = new BufferHashGrouper<>(
+        this.grouper = new BufferGrouper<>(
             bufferSupplier,
             keySerde,
             columnSelectorFactory,

@@ -42,8 +42,8 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.LongDimensionSchema;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.java.util.common.Intervals;
 import io.druid.java.util.common.granularity.Granularities;
+import io.druid.java.util.common.guava.MergeSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.logger.Logger;
@@ -79,6 +79,7 @@ import io.druid.segment.column.ColumnConfig;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import org.apache.commons.io.FileUtils;
+import org.joda.time.Interval;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -93,7 +94,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 
 public class GroupByLimitPushDownInsufficientBufferTest
 {
@@ -441,14 +441,15 @@ public class GroupByLimitPushDownInsufficientBufferTest
               @Override
               public Sequence<Row> run(QueryPlus<Row> queryPlus, Map<String, Object> responseContext)
               {
-                return Sequences
-                    .simple(
+                return new MergeSequence<Row>(
+                    queryPlus.getQuery().getResultOrdering(),
+                    Sequences.simple(
                         ImmutableList.of(
-                            theRunner.run(queryPlus, responseContext),
-                            theRunner2.run(queryPlus, responseContext)
-                        )
+                        theRunner.run(queryPlus, responseContext),
+                        theRunner2.run(queryPlus, responseContext)
+                      )
                     )
-                    .flatMerge(Function.identity(), queryPlus.getQuery().getResultOrdering());
+                );
               }
             }
         ),
@@ -456,7 +457,7 @@ public class GroupByLimitPushDownInsufficientBufferTest
     );
 
     QuerySegmentSpec intervalSpec = new MultipleIntervalSegmentSpec(
-        Collections.singletonList(Intervals.utc(0, 1000000))
+        Collections.singletonList(new Interval(0, 1000000))
     );
 
     GroupByQuery query = GroupByQuery
@@ -531,14 +532,15 @@ public class GroupByLimitPushDownInsufficientBufferTest
               @Override
               public Sequence<Row> run(QueryPlus<Row> queryPlus, Map<String, Object> responseContext)
               {
-                return Sequences
-                    .simple(
+                return new MergeSequence<Row>(
+                    queryPlus.getQuery().getResultOrdering(),
+                    Sequences.simple(
                         ImmutableList.of(
                             theRunner.run(queryPlus, responseContext),
                             theRunner2.run(queryPlus, responseContext)
                         )
                     )
-                    .flatMerge(Function.identity(), queryPlus.getQuery().getResultOrdering());
+                );
               }
             }
         ),
@@ -546,7 +548,7 @@ public class GroupByLimitPushDownInsufficientBufferTest
     );
 
     QuerySegmentSpec intervalSpec = new MultipleIntervalSegmentSpec(
-        Collections.singletonList(Intervals.utc(0, 1000000))
+        Collections.singletonList(new Interval(0, 1000000))
     );
 
     GroupByQuery query = GroupByQuery
