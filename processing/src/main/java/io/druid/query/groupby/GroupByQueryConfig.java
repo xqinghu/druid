@@ -144,7 +144,7 @@ public class GroupByQueryConfig
   {
     return forceHashAggregation;
   }
-  
+
   public GroupByQueryConfig withOverrides(final GroupByQuery query)
   {
     final GroupByQueryConfig newConfig = new GroupByQueryConfig();

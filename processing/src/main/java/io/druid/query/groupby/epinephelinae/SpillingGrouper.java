@@ -27,6 +27,8 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import io.druid.java.util.common.parsers.CloseableIterator;
+import io.druid.java.util.common.CloseableIterators;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.query.BaseQuery;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -42,8 +44,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Grouper based around a single underlying {@link BufferHashGrouper}. Not thread-safe.
@@ -64,6 +68,7 @@ public class SpillingGrouper<KeyType> implements Grouper<KeyType>
   private final Comparator<Grouper.Entry<KeyType>> defaultOrderKeyObjComparator;
 
   private final List<File> files = Lists.newArrayList();
+  private final List<File> dictionaryFiles = Lists.newArrayList();
   private final List<Closeable> closeables = Lists.newArrayList();
   private final boolean sortHasNonGroupingFields;
 
@@ -134,7 +139,7 @@ public class SpillingGrouper<KeyType> implements Grouper<KeyType>
   {
     final AggregateResult result = grouper.aggregate(key, keyHash);
 
-    if (result.isOk() || temporaryStorage.maxSize() <= 0 || !spillingAllowed) {
+    if (result.isOk() || !spillingAllowed || temporaryStorage.maxSize() <= 0) {
       return result;
     } else {
       // Warning: this can potentially block up a processing thread for a while.
@@ -167,71 +172,104 @@ public class SpillingGrouper<KeyType> implements Grouper<KeyType>
     deleteFiles();
   }
 
+  public List<String> getDictionary()
+  {
+    final Set<String> mergedDictionary = new HashSet<>();
+    mergedDictionary.addAll(keySerde.getDictionary());
+
+    for (File dictFile : dictionaryFiles) {
+      try {
+        final MappingIterator<String> dictIterator = spillMapper.readValues(
+            spillMapper.getFactory().createParser(new LZ4BlockInputStream(new FileInputStream(dictFile))),
+            spillMapper.getTypeFactory().constructType(String.class)
+        );
+
+        while (dictIterator.hasNext()) {
+          mergedDictionary.add(dictIterator.next());
+        }
+      }
+      catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    return new ArrayList<>(mergedDictionary);
+  }
+
   public void setSpillingAllowed(final boolean spillingAllowed)
   {
     this.spillingAllowed = spillingAllowed;
   }
 
   @Override
-  public Iterator<Entry<KeyType>> iterator(final boolean sorted)
+  public CloseableIterator<Entry<KeyType>> iterator(final boolean sorted)
   {
-    final List<Iterator<Entry<KeyType>>> iterators = new ArrayList<>(1 + files.size());
+    final List<CloseableIterator<Entry<KeyType>>> iterators = new ArrayList<>(1 + files.size());
 
     iterators.add(grouper.iterator(sorted));
 
     for (final File file : files) {
       final MappingIterator<Entry<KeyType>> fileIterator = read(file, keySerde.keyClazz());
       iterators.add(
-          Iterators.transform(
-              fileIterator,
-              new Function<Entry<KeyType>, Entry<KeyType>>()
-              {
-                @Override
-                public Entry<KeyType> apply(Entry<KeyType> entry)
-                {
-                  final Object[] deserializedValues = new Object[entry.getValues().length];
-                  for (int i = 0; i < deserializedValues.length; i++) {
-                    deserializedValues[i] = aggregatorFactories[i].deserialize(entry.getValues()[i]);
-                    if (deserializedValues[i] instanceof Integer) {
-                      // Hack to satisfy the groupBy unit tests; perhaps we could do better by adjusting Jackson config.
-                      deserializedValues[i] = ((Integer) deserializedValues[i]).longValue();
+          CloseableIterators.withEmptyBaggage(
+              Iterators.transform(
+                  fileIterator,
+                  new Function<Entry<KeyType>, Entry<KeyType>>()
+                  {
+                    @Override
+                    public Entry<KeyType> apply(Entry<KeyType> entry)
+                    {
+                      final Object[] deserializedValues = new Object[entry.getValues().length];
+                      for (int i = 0; i < deserializedValues.length; i++) {
+                        deserializedValues[i] = aggregatorFactories[i].deserialize(entry.getValues()[i]);
+                        if (deserializedValues[i] instanceof Integer) {
+                          // Hack to satisfy the groupBy unit tests; perhaps we could do better by adjusting Jackson config.
+                          deserializedValues[i] = ((Integer) deserializedValues[i]).longValue();
+                        }
+                      }
+                      return new Entry<>(entry.getKey(), deserializedValues);
                     }
                   }
-                  return new Entry<>(entry.getKey(), deserializedValues);
-                }
-              }
+              )
           )
       );
       closeables.add(fileIterator);
     }
 
     if (sortHasNonGroupingFields) {
-      return Groupers.mergeIterators(iterators, defaultOrderKeyObjComparator);
+      return CloseableIterators.mergeSorted(iterators, defaultOrderKeyObjComparator);
     } else {
-      return Groupers.mergeIterators(iterators, sorted ? keyObjComparator : null);
+      return sorted ?
+             CloseableIterators.mergeSorted(iterators, keyObjComparator) :
+             CloseableIterators.concat(iterators);
     }
   }
 
   private void spill() throws IOException
   {
-    final File outFile;
+    try (CloseableIterator<Entry<KeyType>> iterator = grouper.iterator(true)) {
+      files.add(spill(iterator));
+      dictionaryFiles.add(spill(keySerde.getDictionary().iterator()));
 
+      grouper.reset();
+    }
+  }
+
+  private <T> File spill(Iterator<T> iterator) throws IOException
+  {
     try (
         final LimitedTemporaryStorage.LimitedOutputStream out = temporaryStorage.createFile();
         final LZ4BlockOutputStream compressedOut = new LZ4BlockOutputStream(out);
         final JsonGenerator jsonGenerator = spillMapper.getFactory().createGenerator(compressedOut)
     ) {
-      outFile = out.getFile();
-      final Iterator<Entry<KeyType>> it = grouper.iterator(true);
-      while (it.hasNext()) {
+      while (iterator.hasNext()) {
         BaseQuery.checkInterrupted();
 
-        jsonGenerator.writeObject(it.next());
+        jsonGenerator.writeObject(iterator.next());
       }
-    }
 
-    files.add(outFile);
-    grouper.reset();
+      return out.getFile();
+    }
   }
 
   private MappingIterator<Entry<KeyType>> read(final File file, final Class<KeyType> keyClazz)
