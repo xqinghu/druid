@@ -104,7 +104,6 @@
         <module>hll</module>
         <!-- Core extensions -->
         <module>extensions-core/avro-extensions</module>
-        <module>extensions-core/caffeine-cache</module>
         <module>extensions-core/datasketches</module>
         <module>extensions-core/druid-kerberos</module>
         <module>extensions-core/hdfs-storage</module>
@@ -737,6 +736,11 @@
                 <artifactId>calcite-core</artifactId>
                 <version>${calcite.version}</version>
                 <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.github.ben-manes.caffeine</groupId>
+                <artifactId>caffeine</artifactId>
+                <version>${caffeine.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.easymock</groupId>
