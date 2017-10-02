@@ -16,20 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package io.druid.server.coordinator;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.util.concurrent.ListeningExecutorService;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "strategy", defaultImpl = CostBalancerStrategyFactory.class)
-@JsonSubTypes(value = {
-        @JsonSubTypes.Type(name = "diskNormalized", value = DiskNormalizedCostBalancerStrategyFactory.class),
-        @JsonSubTypes.Type(name = "cost", value = CostBalancerStrategyFactory.class),
-        @JsonSubTypes.Type(name = "random", value = RandomBalancerStrategyFactory.class),
-        @JsonSubTypes.Type(name = "legacy", value = LegacyCostBalancerStrategy.class)
-})
-public interface BalancerStrategyFactory
+public class LegacyCostBalancerStrategyFactory implements BalancerStrategyFactory
 {
-  public BalancerStrategy createBalancerStrategy(ListeningExecutorService exec);
+  @Override
+  public BalancerStrategy createBalancerStrategy(final ListeningExecutorService exec)
+  {
+    return new LegacyCostBalancerStrategy(exec);
+  }
 }
