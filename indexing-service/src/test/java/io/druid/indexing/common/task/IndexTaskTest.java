@@ -208,6 +208,49 @@ public class IndexTaskTest
   }
 
   @Test
+  public void testTransformSpec() throws Exception
+  {
+    File tmpDir = temporaryFolder.newFolder();
+
+    File tmpFile = File.createTempFile("druid", "index", tmpDir);
+
+    try (BufferedWriter writer = Files.newWriter(tmpFile, StandardCharsets.UTF_8)) {
+      writer.write("2014-01-01T00:00:10Z,a,1\n");
+      writer.write("2014-01-01T01:00:20Z,b,1\n");
+      writer.write("2014-01-01T02:00:30Z,c,1\n");
+    }
+
+    IndexTask indexTask = new IndexTask(
+        null,
+        null,
+        createIngestionSpec(
+            tmpDir,
+            null,
+            null,
+            createTuningConfig(2, null, true, false),
+            false
+        ),
+        null
+    );
+
+    Assert.assertEquals(indexTask.getId(), indexTask.getGroupId());
+
+    final List<DataSegment> segments = runTask(indexTask);
+
+    Assert.assertEquals(2, segments.size());
+
+    Assert.assertEquals("test", segments.get(0).getDataSource());
+    Assert.assertEquals(Intervals.of("2014/P1D"), segments.get(0).getInterval());
+    Assert.assertEquals(NumberedShardSpec.class, segments.get(0).getShardSpec().getClass());
+    Assert.assertEquals(0, segments.get(0).getShardSpec().getPartitionNum());
+
+    Assert.assertEquals("test", segments.get(1).getDataSource());
+    Assert.assertEquals(Intervals.of("2014/P1D"), segments.get(1).getInterval());
+    Assert.assertEquals(NumberedShardSpec.class, segments.get(1).getShardSpec().getClass());
+    Assert.assertEquals(1, segments.get(1).getShardSpec().getPartitionNum());
+  }
+
+  @Test
   public void testWithArbitraryGranularity() throws Exception
   {
     File tmpDir = temporaryFolder.newFolder();

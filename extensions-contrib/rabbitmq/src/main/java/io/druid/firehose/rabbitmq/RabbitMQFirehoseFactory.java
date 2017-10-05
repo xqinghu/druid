@@ -41,6 +41,7 @@ import net.jodah.lyra.config.Config;
 import net.jodah.lyra.retry.RetryPolicy;
 import net.jodah.lyra.util.Duration;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -225,6 +226,7 @@ public class RabbitMQFirehoseFactory implements FirehoseFactory<ByteBufferInputR
         return false;
       }
 
+      @Nullable
       @Override
       public InputRow nextRow()
       {

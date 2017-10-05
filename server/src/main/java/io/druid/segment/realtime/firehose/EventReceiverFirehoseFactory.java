@@ -53,6 +53,7 @@ import io.druid.server.security.ResourceAction;
 import io.druid.server.security.ResourceType;
 import org.joda.time.DateTime;
 
+import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
@@ -253,6 +254,7 @@ public class EventReceiverFirehoseFactory implements FirehoseFactory<MapInputRow
       }
     }
 
+    @Nullable
     @Override
     public InputRow nextRow()
     {
