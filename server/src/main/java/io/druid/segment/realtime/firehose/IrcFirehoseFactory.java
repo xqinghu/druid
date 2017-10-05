@@ -38,6 +38,7 @@ import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
 import org.joda.time.DateTime;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -212,6 +213,7 @@ public class IrcFirehoseFactory implements FirehoseFactory<IrcInputRowParser>
         }
       }
 
+      @Nullable
       @Override
       public InputRow nextRow()
       {

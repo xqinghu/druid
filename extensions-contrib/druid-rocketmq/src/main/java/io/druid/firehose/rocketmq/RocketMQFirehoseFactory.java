@@ -42,6 +42,7 @@ import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.ParseException;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -247,6 +248,7 @@ public class RocketMQFirehoseFactory implements FirehoseFactory<ByteBufferInputR
         return hasMore;
       }
 
+      @Nullable
       @Override
       public InputRow nextRow()
       {

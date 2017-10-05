@@ -37,6 +37,7 @@ import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.InvalidMessageException;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -111,6 +112,7 @@ public class KafkaEightFirehoseFactory implements FirehoseFactory<ByteBufferInpu
         return iter.hasNext();
       }
 
+      @Nullable
       @Override
       public InputRow nextRow()
       {
