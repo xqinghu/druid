@@ -401,6 +401,8 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
     synchronized (scriptLock) {
       if (config.isEnabled()) {
         compiledScript = compiledScript == null ? compileScript(fnAggregate, fnReset, fnCombine) : compiledScript;
+      } else {
+        throw new IllegalStateException("JavaScript is disabled");
       }
     }
   }
