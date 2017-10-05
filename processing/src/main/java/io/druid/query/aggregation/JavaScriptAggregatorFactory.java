@@ -28,7 +28,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
-import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
 import io.druid.js.JavaScriptConfig;
 import io.druid.segment.ColumnSelectorFactory;
@@ -59,7 +58,8 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
   private final String fnCombine;
   private final JavaScriptConfig config;
 
-  private final JavaScriptAggregator.ScriptAggregator compiledScript;
+  private JavaScriptAggregator.ScriptAggregator compiledScript;
+  private final Object scriptLock = new Object();
 
   @JsonCreator
   public JavaScriptAggregatorFactory(
@@ -84,17 +84,12 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
     this.fnReset = fnReset;
     this.fnCombine = fnCombine;
     this.config = config;
-
-    if (config.isEnabled()) {
-      this.compiledScript = compileScript(fnAggregate, fnReset, fnCombine);
-    } else {
-      this.compiledScript = null;
-    }
   }
 
   @Override
   public Aggregator factorize(final ColumnSelectorFactory columnFactory)
   {
+    checkCompiledScript();
     return new JavaScriptAggregator(
         Lists.transform(
             fieldNames,
@@ -107,13 +102,14 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
               }
             }
         ),
-        getCompiledScript()
+        compiledScript
     );
   }
 
   @Override
   public BufferAggregator factorizeBuffered(final ColumnSelectorFactory columnSelectorFactory)
   {
+    checkCompiledScript();
     return new JavaScriptBufferAggregator(
         Lists.transform(
             fieldNames,
@@ -126,7 +122,7 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
               }
             }
         ),
-        getCompiledScript()
+        compiledScript
     );
   }
 
@@ -139,7 +135,8 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
   @Override
   public Object combine(Object lhs, Object rhs)
   {
-    return getCompiledScript().combine(((Number) lhs).doubleValue(), ((Number) rhs).doubleValue());
+    checkCompiledScript();
+    return compiledScript.combine(((Number) lhs).doubleValue(), ((Number) rhs).doubleValue());
   }
 
   @Override
@@ -274,15 +271,6 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
            '}';
   }
 
-  private JavaScriptAggregator.ScriptAggregator getCompiledScript()
-  {
-    if (compiledScript == null) {
-      throw new ISE("JavaScript is disabled");
-    }
-
-    return compiledScript;
-  }
-
   @VisibleForTesting
   static JavaScriptAggregator.ScriptAggregator compileScript(
       final String aggregate,
@@ -403,5 +391,19 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
   public int hashCode()
   {
     return Objects.hash(name, fieldNames, fnAggregate, fnReset, fnCombine);
+  }
+
+  private void checkCompiledScript()
+  {
+    if (compiledScript != null) {
+      return;
+    }
+    synchronized (scriptLock) {
+      if (config.isEnabled()) {
+        compiledScript = compiledScript == null ? compileScript(fnAggregate, fnReset, fnCombine) : compiledScript;
+      } else {
+        throw new IllegalStateException("JavaScript is disabled");
+      }
+    }
   }
 }
