@@ -59,7 +59,7 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
-      <version>${apache.kafka.version}</version>
+      <version>0.9.0.1</version>
     </dependency>
 
     <!-- Tests -->
@@ -71,7 +71,7 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka_2.11</artifactId>
-      <version>${apache.kafka.version}</version>
+      <version>0.9.0.0</version>
       <scope>test</scope>
     </dependency>
     <dependency>

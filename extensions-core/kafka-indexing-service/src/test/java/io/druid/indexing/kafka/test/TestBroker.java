@@ -25,13 +25,12 @@ import com.google.common.io.Files;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import org.apache.commons.io.FileUtils;
+import kafka.utils.SystemTime$;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.common.utils.SystemTime;
 import scala.Some;
-import scala.collection.immutable.List$;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
@@ -80,7 +79,7 @@ public class TestBroker implements Closeable
 
     final KafkaConfig config = new KafkaConfig(props);
 
-    server = new KafkaServer(config, SystemTime.SYSTEM, Some.apply(String.format("TestingBroker[%d]-", id)), List$.MODULE$.empty());
+    server = new KafkaServer(config, SystemTime$.MODULE$, Some.apply(String.format("TestingBroker[%d]-", id)));
     server.startup();
   }
 
