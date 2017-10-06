@@ -29,6 +29,8 @@ import io.druid.guice.annotations.PublicApi;
 @PublicApi
 public class Worker
 {
+  private final static String DEFAULT_SCHEME = "http";
+
   private final String scheme;
   private final String host;
   private final String ip;
@@ -44,7 +46,8 @@ public class Worker
       @JsonProperty("version") String version
   )
   {
-    this.scheme = scheme;
+    // Need a default scheme for backwards compatible deserialization of worker objects that don't include scheme.
+    this.scheme = scheme != null ? scheme : DEFAULT_SCHEME;
     this.host = host;
     this.ip = ip;
     this.capacity = capacity;
