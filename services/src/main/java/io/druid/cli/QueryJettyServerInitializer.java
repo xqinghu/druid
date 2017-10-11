@@ -21,6 +21,7 @@ package io.druid.cli;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
@@ -47,8 +48,11 @@ import java.util.Set;
  */
 public class QueryJettyServerInitializer implements JettyServerInitializer
 {
-  private static Logger log = new Logger(QueryJettyServerInitializer.class);
-
+  private static final Logger log = new Logger(QueryJettyServerInitializer.class);
+  private static List<String> UNSECURED_PATHS = Lists.newArrayList(
+      "/health"
+  );
+  
   private final List<Handler> extensionHandlers;
 
   @Inject
@@ -69,6 +73,10 @@ public class QueryJettyServerInitializer implements JettyServerInitializer
 
     List<Authenticator> authenticators = null;
     AuthenticationUtils.addSecuritySanityCheckFilter(root, jsonMapper);
+
+    // perform no-op authorization for these static resources
+    AuthenticationUtils.addNoopAuthorizationFilters(root, UNSECURED_PATHS);
+
     authenticators = authenticatorMapper.getAuthenticatorChain();
     AuthenticationUtils.addAuthenticationFilterChain(root, authenticators);
 
