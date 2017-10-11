@@ -40,6 +40,11 @@ public class UnsecuredResourceFilter implements Filter
       ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain
   ) throws IOException, ServletException
   {
+    servletRequest.setAttribute(
+        AuthConfig.DRUID_AUTHENTICATION_RESULT,
+        new AuthenticationResult("allowAll", "allowAll", null)
+    );
+
     servletRequest.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
     filterChain.doFilter(servletRequest, servletResponse);
   }
