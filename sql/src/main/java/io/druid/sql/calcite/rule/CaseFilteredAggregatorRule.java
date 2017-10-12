@@ -201,7 +201,6 @@ public class CaseFilteredAggregatorRule extends RelOptRule
 
       final RelBuilder.GroupKey groupKey = relBuilder.groupKey(
           aggregate.getGroupSet(),
-          aggregate.indicator,
           aggregate.getGroupSets()
       );
 
