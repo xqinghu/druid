@@ -25,7 +25,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.client.ServerInventoryView;
 import io.druid.client.ServerView;
-import io.druid.concurrent.Execs;
+import io.druid.java.util.common.concurrent.Execs;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
 import io.druid.java.util.common.lifecycle.LifecycleStop;
