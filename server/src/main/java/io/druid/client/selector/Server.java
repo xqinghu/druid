@@ -19,10 +19,23 @@
 
 package io.druid.client.selector;
 
+import java.util.Comparator;
+
 /**
  */
 public interface Server
 {
+  Comparator<Server> HOST_COMPARATOR = new Comparator<Server>()
+  {
+    final Comparator<String> cmp = Comparator.nullsFirst(String::compareToIgnoreCase);
+
+    @Override
+    public int compare(Server o1, Server o2)
+    {
+      return cmp.compare(o1.getHost(), o2.getHost());
+    }
+  };
+
   public String getScheme();
   public String getHost();
   public String getAddress();
