@@ -70,6 +70,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -147,6 +148,7 @@ public class GroupByQuery extends BaseQuery<Row>
           postProcessingFn,
           (Sequence<Row> input) -> {
             havingSpec.setRowSignature(GroupByQueryHelper.rowSignatureFor(GroupByQuery.this));
+            havingSpec.setAggregators(getAggregatorsMap(aggregatorSpecs));
             return Sequences.filter(input, havingSpec::eval);
           }
       );
@@ -733,6 +735,13 @@ public class GroupByQuery extends BaseQuery<Row>
           Column.TIME_COLUMN_NAME
       );
     }
+  }
+
+  private static Map<String, AggregatorFactory> getAggregatorsMap(List<AggregatorFactory> aggregatorSpecs)
+  {
+    Map<String, AggregatorFactory> map = new HashMap<>(aggregatorSpecs.size());
+    aggregatorSpecs.stream().forEach(v -> map.put(v.getName(), v));
+    return map;
   }
 
   public static class Builder
