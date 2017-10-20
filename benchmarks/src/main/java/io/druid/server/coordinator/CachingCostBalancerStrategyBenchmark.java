@@ -19,7 +19,6 @@
 
 package io.druid.server.coordinator;
 
-import io.druid.java.util.common.DateTimes;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.coordinator.cost.SegmentsCostCache;
 import io.druid.timeline.DataSegment;
@@ -58,7 +57,7 @@ public class CachingCostBalancerStrategyBenchmark
 
   private static final long DAYS_IN_MONTH = 30;
 
-  private final DateTime referenceTime = DateTimes.of("2014-01-01T00:00:00");
+  private final DateTime referenceTime = new DateTime("2014-01-01T00:00:00");
   private final Set<DataSegment> segments = new HashSet<>();
   private final Set<DataSegment> segmentQueries = new HashSet<>();
   private final int seed = ThreadLocalRandom.current().nextInt();
