@@ -26,6 +26,8 @@ import io.druid.math.expr.ExprMacroTable;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
+import org.joda.time.format.DateTimeParser;
 import org.joda.time.format.ISODateTimeFormat;
 
 import javax.annotation.Nonnull;
@@ -57,7 +59,7 @@ public class TimestampParseExprMacro implements ExprMacroTable.ExprMacro
     }
 
     final DateTimeFormatter formatter = formatString == null
-                                        ? ISODateTimeFormat.dateTimeParser()
+                                        ? createDefaultParser()
                                         : DateTimeFormat.forPattern(formatString).withZone(timeZone);
 
     class TimestampParseExpr implements Expr
@@ -90,5 +92,33 @@ public class TimestampParseExprMacro implements ExprMacroTable.ExprMacro
     }
 
     return new TimestampParseExpr();
+  }
+
+  /**
+   * Default formatter that parses according to the docs for this method: "If the pattern is not provided, this parses
+   * time strings in either ISO8601 or SQL format."
+   */
+  private static DateTimeFormatter createDefaultParser()
+  {
+    final DateTimeFormatter offsetElement = new DateTimeFormatterBuilder()
+        .appendTimeZoneOffset("Z", true, 2, 4)
+        .toFormatter();
+
+    DateTimeParser timeOrOffset = new DateTimeFormatterBuilder()
+        .append(
+            null,
+            new DateTimeParser[]{
+                new DateTimeFormatterBuilder().appendLiteral('T').toParser(),
+                new DateTimeFormatterBuilder().appendLiteral(' ').toParser()
+            }
+        )
+        .appendOptional(ISODateTimeFormat.timeElementParser().getParser())
+        .appendOptional(offsetElement.getParser())
+        .toParser();
+
+    return new DateTimeFormatterBuilder()
+        .append(ISODateTimeFormat.dateElementParser())
+        .appendOptional(timeOrOffset)
+        .toFormatter();
   }
 }
