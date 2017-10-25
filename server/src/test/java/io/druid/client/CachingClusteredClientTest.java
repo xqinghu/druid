@@ -1319,9 +1319,9 @@ public class CachingClusteredClientTest
         makeSelectResults(dimensions, metrics, new DateTime("2011-01-02"), ImmutableMap.of("a", "c", "rows", 5)),
 
         new Interval("2011-01-05/2011-01-10"),
-        makeSelectResults(dimensions, metrics, new DateTime("2011-01-05"), ImmutableMap.of("a", "d", "rows", 5),
-            new DateTime("2011-01-06"), ImmutableMap.of("a", "e", "rows", 6),
-            new DateTime("2011-01-07"), ImmutableMap.of("a", "f", "rows", 7),
+        makeSelectResults(dimensions, metrics, new DateTime("2011-01-05"),
+            new DateTime("2011-01-06"),
+            new DateTime("2011-01-07"), ImmutableMap.of("a", "f", "rows", 7), ImmutableMap.of("a", "ff"),
             new DateTime("2011-01-08"), ImmutableMap.of("a", "g", "rows", 8),
             new DateTime("2011-01-09"), ImmutableMap.of("a", "h", "rows", 9)
         ),
@@ -1347,11 +1347,11 @@ public class CachingClusteredClientTest
     TestHelper.assertExpectedResults(
         makeSelectResults(dimensions, metrics, new DateTime("2011-01-01"), ImmutableMap.of("a", "b", "rows", 1),
             new DateTime("2011-01-02"), ImmutableMap.of("a", "c", "rows", 5),
-            new DateTime("2011-01-05"), ImmutableMap.of("a", "d", "rows", 5),
+            new DateTime("2011-01-05"),
             new DateTime("2011-01-05T01"), ImmutableMap.of("a", "d", "rows", 5),
-            new DateTime("2011-01-06"), ImmutableMap.of("a", "e", "rows", 6),
+            new DateTime("2011-01-06"),
             new DateTime("2011-01-06T01"), ImmutableMap.of("a", "e", "rows", 6),
-            new DateTime("2011-01-07"), ImmutableMap.of("a", "f", "rows", 7),
+            new DateTime("2011-01-07"), ImmutableMap.of("a", "f", "rows", 7), ImmutableMap.of("a", "ff"),
             new DateTime("2011-01-07T01"), ImmutableMap.of("a", "f", "rows", 7),
             new DateTime("2011-01-08"), ImmutableMap.of("a", "g", "rows", 8),
             new DateTime("2011-01-08T01"), ImmutableMap.of("a", "g", "rows", 8),
@@ -2688,7 +2688,8 @@ public class CachingClusteredClientTest
 
       retVal.add(new Result<>(
           timestamp,
-          new SelectResultValue(null, dimensions, metrics, values)
+          new SelectResultValue(ImmutableMap.of(timestamp.toString(), 0),
+                                dimensions, metrics, values)
       ));
     }
     return retVal;
