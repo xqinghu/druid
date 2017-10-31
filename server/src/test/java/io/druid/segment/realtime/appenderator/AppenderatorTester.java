@@ -21,11 +21,8 @@ package io.druid.segment.realtime.appenderator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-//CHECKSTYLE.OFF: Regexp
-import com.metamx.common.logger.Logger;
-//CHECKSTYLE.ON: Regexp
 import com.metamx.emitter.EmittingLogger;
-import com.metamx.emitter.core.LoggingEmitter;
+import com.metamx.emitter.core.NoopEmitter;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.MapCache;
@@ -130,6 +127,7 @@ public class AppenderatorTester implements AutoCloseable
             new LongSumAggregatorFactory("met", "met")
         },
         new UniformGranularitySpec(Granularities.MINUTE, Granularities.NONE, null),
+        null,
         objectMapper
     );
 
@@ -170,11 +168,7 @@ public class AppenderatorTester implements AutoCloseable
     emitter = new ServiceEmitter(
         "test",
         "test",
-        new LoggingEmitter(
-            new Logger(AppenderatorTester.class),
-            LoggingEmitter.Level.INFO,
-            objectMapper
-        )
+        new NoopEmitter()
     );
     emitter.start();
     EmittingLogger.registerEmitter(emitter);
