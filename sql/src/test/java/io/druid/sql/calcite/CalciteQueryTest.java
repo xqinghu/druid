@@ -1069,6 +1069,27 @@ public class CalciteQueryTest
   }
 
   @Test
+  public void testFilterOnDoubleRangeUsingOnlyLessThan() throws Exception
+  {
+    testQuery(
+        "SELECT COUNT(*) FROM druid.foo WHERE 1 < m2 AND m2 < 4",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(CalciteTests.DATASOURCE1)
+                  .intervals(QSS(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .filters(BOUND("m2", "1", "4", true, true, null, StringComparators.NUMERIC))
+                  .aggregators(AGGS(new CountAggregatorFactory("a0")))
+                  .context(TIMESERIES_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{2L}
+        )
+    );
+  }
+
+  @Test
   public void testHavingOnDoubleSum() throws Exception
   {
     testQuery(
@@ -2423,7 +2444,6 @@ public class CalciteQueryTest
   }
 
   @Test
-  @Ignore // https://issues.apache.org/jira/browse/CALCITE-1910
   public void testFilteredAggregationWithNotIn() throws Exception
   {
     testQuery(
@@ -2436,12 +2456,21 @@ public class CalciteQueryTest
                   .dataSource(CalciteTests.DATASOURCE1)
                   .intervals(QSS(Filtration.eternity()))
                   .granularity(Granularities.ALL)
-                  .aggregators(AGGS())
+                  .aggregators(AGGS(
+                      new FilteredAggregatorFactory(
+                          new CountAggregatorFactory("a0"),
+                          NOT(SELECTOR("dim1", "1", null))
+                      ),
+                      new FilteredAggregatorFactory(
+                          new CountAggregatorFactory("a1"),
+                          AND(NOT(SELECTOR("dim2", "", null)), NOT(SELECTOR("dim1", "1", null)))
+                      )
+                  ))
                   .context(TIMESERIES_CONTEXT_DEFAULT)
                   .build()
         ),
         ImmutableList.of(
-            new Object[]{1L, 5L}
+            new Object[]{5L, 2L}
         )
     );
   }
