@@ -3858,7 +3858,8 @@ public class GroupByQueryRunnerTest
                 ),
                 new SelectorDimFilter("__time", String.valueOf(DateTimes.of("2011-04-01").getMillis()), null)
             )
-        )
+        ),
+        null
     );
 
     GroupByQuery.Builder builder = GroupByQuery
@@ -3904,7 +3905,8 @@ public class GroupByQueryRunnerTest
                 new BoundDimFilter("rows", "12", null, true, false, null, extractionFn2, StringComparators.NUMERIC),
                 new SelectorDimFilter("idx", "super-217", extractionFn)
             )
-        )
+        ),
+        null
     );
 
     GroupByQuery.Builder builder = GroupByQuery
@@ -7935,7 +7937,8 @@ public class GroupByQueryRunnerTest
                             StringComparators.NUMERIC
                         )
                     )
-                )
+                ),
+                null
             )
         )
         .setGranularity(QueryRunnerTestHelper.allGran)
