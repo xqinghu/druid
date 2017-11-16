@@ -82,6 +82,11 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>io.druid.extensions</groupId>
+            <artifactId>druid-basic-security</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
             <groupId>io.druid</groupId>
             <artifactId>druid-services</artifactId>
             <version>${project.parent.version}</version>
@@ -218,6 +223,7 @@
                             <signaturesFiles>
                                 <!-- Needed because of https://github.com/policeman-tools/forbidden-apis/issues/126 -->
                                 <signaturesFile>../codestyle/joda-time-forbidden-apis.txt</signaturesFile>
+                                <signaturesFile>../codestyle/druid-forbidden-apis.txt</signaturesFile>
                             </signaturesFiles>
                         </configuration>
                     </plugin>
@@ -261,6 +267,7 @@
                             <signaturesFiles>
                                 <!-- Needed because of https://github.com/policeman-tools/forbidden-apis/issues/126 -->
                                 <signaturesFile>../codestyle/joda-time-forbidden-apis.txt</signaturesFile>
+                                <signaturesFile>../codestyle/druid-forbidden-apis.txt</signaturesFile>
                             </signaturesFiles>
                         </configuration>
                     </plugin>
