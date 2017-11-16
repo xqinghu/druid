@@ -129,16 +129,8 @@ public class DruidTestRunnerFactory implements ITestRunnerFactory
           {
             try {
               StatusResponseHolder response = client.go(
-                new Request(
-                  HttpMethod.GET,
-                  new URL(
-                    StringUtils.format(
-                      "%s/status",
-                      host
-                    )
-                  )
-                ),
-                handler
+                  new Request(HttpMethod.GET, new URL(StringUtils.format("%s/status/health", host))),
+                  handler
               ).get();
 
               LOG.info("%s %s", response.getStatus(), response.getContent());

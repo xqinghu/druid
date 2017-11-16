@@ -67,7 +67,11 @@ When `druid.auth.authenticationChain` is left empty or unspecified, Druid will c
 
 When `druid.auth.authorizers` is left empty or unspecified, Druid will create a single AllowAll Authorizer named "allowAll".
 
+<<<<<<< HEAD
+The default value of `druid.escalator.type` is "allowAll" to match the default unsecured Authenticator/Authorizer configurations.
+=======
 The default value of `druid.escalator.type` is "noop" to match the default unsecured Authenticator/Authorizer configurations.
+>>>>>>> upstream/master
 
 ## Authenticator to Authorizer Routing
 
@@ -118,3 +122,7 @@ druid.auth.authorizer.<authorizer-name>.name=<authorizer-name>
 ```
 
 These properties provide the authenticator and authorizer names to the implementations as @JsonProperty parameters, potentially useful when multiple authenticators or authorizers of the same type are configured.
+<<<<<<< HEAD
+
+=======
+>>>>>>> upstream/master
