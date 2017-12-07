@@ -476,7 +476,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
                             ));
                           }
                           catch (IOException e) {
-                            log.makeAlert(e, "Failed to read segment from db.");
+                            log.makeAlert(e, "Failed to read segment from db.").emit();
                             return null;
                           }
                         }
