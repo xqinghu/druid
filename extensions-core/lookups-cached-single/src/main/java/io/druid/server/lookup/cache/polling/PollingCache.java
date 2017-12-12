@@ -41,4 +41,5 @@ public interface PollingCache<K, V>
    * close and clean the resources used by the cache
    */
   void close();
+
 }

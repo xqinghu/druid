@@ -39,9 +39,4 @@ public class AuthorizerMapper
   {
     return authorizerMap.get(name);
   }
-
-  public Map<String, Authorizer> getAuthorizerMap()
-  {
-    return authorizerMap;
-  }
 }

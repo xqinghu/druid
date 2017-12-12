@@ -39,7 +39,6 @@ import org.joda.time.Interval;
 
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 public class CoordinatorResourceTestClient
@@ -51,9 +50,8 @@ public class CoordinatorResourceTestClient
 
   @Inject
   CoordinatorResourceTestClient(
-      ObjectMapper jsonMapper,
-      @TestClient HttpClient httpClient,
-      IntegrationTestingConfig config
+    ObjectMapper jsonMapper,
+    @TestClient HttpClient httpClient, IntegrationTestingConfig config
   )
   {
     this.jsonMapper = jsonMapper;
@@ -81,7 +79,7 @@ public class CoordinatorResourceTestClient
   }
 
   // return a list of the segment dates for the specified datasource
-  public List<String> getSegmentIntervals(final String dataSource) throws Exception
+  public ArrayList<String> getSegmentIntervals(final String dataSource) throws Exception
   {
     ArrayList<String> segments = null;
     try {
@@ -123,10 +121,17 @@ public class CoordinatorResourceTestClient
     return (status.containsKey(dataSource) && status.get(dataSource) == 100.0);
   }
 
-  public void unloadSegmentsForDataSource(String dataSource)
+  public void unloadSegmentsForDataSource(String dataSource, Interval interval)
   {
     try {
-      makeRequest(HttpMethod.DELETE, StringUtils.format("%sdatasources/%s", getCoordinatorURL(), dataSource));
+      makeRequest(
+          HttpMethod.DELETE,
+          StringUtils.format(
+              "%sdatasources/%s",
+              getCoordinatorURL(),
+              dataSource
+          )
+      );
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

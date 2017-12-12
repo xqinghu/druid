@@ -46,25 +46,21 @@ public class TaskResponseObject
     this.status = status;
   }
 
-  @SuppressWarnings("unused") // Used by Jackson serialization?
   public String getId()
   {
     return id;
   }
 
-  @SuppressWarnings("unused") // Used by Jackson serialization?
   public DateTime getCreatedTime()
   {
     return createdTime;
   }
 
-  @SuppressWarnings("unused") // Used by Jackson serialization?
   public DateTime getQueueInsertionTime()
   {
     return queueInsertionTime;
   }
 
-  @SuppressWarnings("unused") // Used by Jackson serialization?
   public TaskStatus getStatus()
   {
     return status;
