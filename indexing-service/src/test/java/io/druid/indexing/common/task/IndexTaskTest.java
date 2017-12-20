@@ -988,7 +988,7 @@ public class IndexTaskTest
           }
 
           @Override
-          public DataSegment push(File file, DataSegment segment) throws IOException
+          public DataSegment push(File file, DataSegment segment, boolean replaceExisting) throws IOException
           {
             segments.add(segment);
             return segment;
@@ -1002,6 +1002,7 @@ public class IndexTaskTest
         }, null, null, null, null, null, null, null, null, null, null, jsonMapper, temporaryFolder.newFolder(),
             indexIO, null, null, indexMergerV9, null, null, null, null
         )
+
     );
 
     Collections.sort(segments);
