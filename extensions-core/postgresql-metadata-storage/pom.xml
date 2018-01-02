@@ -28,7 +28,7 @@
     <parent>
         <groupId>io.druid</groupId>
         <artifactId>druid</artifactId>
-        <version>0.11.0-iap2-SNAPSHOT</version>
+        <version>0.11.0-iap1-replaceseg1</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
