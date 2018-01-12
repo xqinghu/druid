@@ -19,6 +19,7 @@
 
 package io.druid.indexing.common.task;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -31,6 +32,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -39,6 +41,8 @@ import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Rows;
 import io.druid.hll.HyperLogLogCollector;
+import io.druid.indexer.TaskMetricsUtils;
+import io.druid.indexer.TimeWindowMovingAverageCollector;
 import io.druid.indexing.appenderator.ActionBasedSegmentAllocator;
 import io.druid.indexing.appenderator.ActionBasedUsedSegmentChecker;
 import io.druid.indexing.common.TaskLock;
@@ -48,6 +52,7 @@ import io.druid.indexing.common.actions.SegmentTransactionalInsertAction;
 import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.firehose.IngestSegmentFirehoseFactory;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Intervals;
 import io.druid.java.util.common.JodaUtils;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.granularity.Granularity;
@@ -64,6 +69,7 @@ import io.druid.segment.indexing.TuningConfig;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.realtime.FireDepartment;
 import io.druid.segment.realtime.FireDepartmentMetrics;
+import io.druid.segment.realtime.FireDepartmentMetricsTaskMetricsGetter;
 import io.druid.segment.realtime.RealtimeMetricsMonitor;
 import io.druid.segment.realtime.appenderator.Appenderator;
 import io.druid.segment.realtime.appenderator.AppenderatorConfig;
@@ -75,20 +81,40 @@ import io.druid.segment.realtime.appenderator.SegmentAllocator;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.segment.realtime.appenderator.SegmentsAndMetadata;
 import io.druid.segment.realtime.appenderator.TransactionalSegmentPublisher;
+import io.druid.segment.realtime.firehose.ChatHandler;
+import io.druid.segment.realtime.firehose.ChatHandlerProvider;
 import io.druid.segment.writeout.SegmentWriteOutMediumFactory;
+import io.druid.server.security.Access;
+import io.druid.server.security.Action;
+import io.druid.server.security.AuthorizationUtils;
+import io.druid.server.security.AuthorizerMapper;
+import io.druid.server.security.ForbiddenException;
+import io.druid.server.security.Resource;
+import io.druid.server.security.ResourceAction;
+import io.druid.server.security.ResourceType;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.HashBasedNumberedShardSpec;
 import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.NumberedShardSpec;
 import io.druid.timeline.partition.ShardSpec;
+import io.druid.utils.CircularBuffer;
 import org.codehaus.plexus.util.FileUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.joda.time.Period;
 
 import javax.annotation.Nullable;
+import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -106,7 +132,7 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class IndexTask extends AbstractTask
+public class IndexTask extends AbstractTask implements ChatHandler
 {
   private static final Logger log = new Logger(IndexTask.class);
   private static final HashFunction hashFunction = Hashing.murmur3_128();
@@ -131,12 +157,29 @@ public class IndexTask extends AbstractTask
   @JsonIgnore
   private final IndexIngestionSpec ingestionSchema;
 
+  @JsonIgnore
+  private FireDepartmentMetrics fireDepartmentMetrics;
+
+  @JsonIgnore
+  private final AuthorizerMapper authorizerMapper;
+
+  @JsonIgnore
+  private final Optional<ChatHandlerProvider> chatHandlerProvider;
+
+  @JsonIgnore
+  private TimeWindowMovingAverageCollector movingAverageCollector;
+
+  @JsonIgnore
+  private CircularBuffer<Throwable> savedParseExceptions;
+
   @JsonCreator
   public IndexTask(
       @JsonProperty("id") final String id,
       @JsonProperty("resource") final TaskResource taskResource,
       @JsonProperty("spec") final IndexIngestionSpec ingestionSchema,
-      @JsonProperty("context") final Map<String, Object> context
+      @JsonProperty("context") final Map<String, Object> context,
+      @JacksonInject AuthorizerMapper authorizerMapper,
+      @JacksonInject ChatHandlerProvider chatHandlerProvider
   )
   {
     this(
@@ -145,7 +188,9 @@ public class IndexTask extends AbstractTask
         taskResource,
         ingestionSchema.dataSchema.getDataSource(),
         ingestionSchema,
-        context
+        context,
+        authorizerMapper,
+        chatHandlerProvider
     );
   }
 
@@ -155,7 +200,9 @@ public class IndexTask extends AbstractTask
       TaskResource resource,
       String dataSource,
       IndexIngestionSpec ingestionSchema,
-      Map<String, Object> context
+      Map<String, Object> context,
+      AuthorizerMapper authorizerMapper,
+      ChatHandlerProvider chatHandlerProvider
   )
   {
     super(
@@ -165,8 +212,14 @@ public class IndexTask extends AbstractTask
         dataSource,
         context
     );
-
     this.ingestionSchema = ingestionSchema;
+    this.authorizerMapper = authorizerMapper;
+    this.chatHandlerProvider = Optional.fromNullable(chatHandlerProvider);
+    if (ingestionSchema.getTuningConfig().getMaxSavedParseExceptions() > 0) {
+      savedParseExceptions = new CircularBuffer<Throwable>(
+          ingestionSchema.getTuningConfig().getMaxSavedParseExceptions()
+      );
+    }
   }
 
   @Override
@@ -208,6 +261,76 @@ public class IndexTask extends AbstractTask
     }
     return true;
   }
+
+  @GET
+  @Path("/unparseableEvents")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getUnparseableEvents(
+      @Context final HttpServletRequest req
+  )
+  {
+    authorizationCheck(req, Action.READ);
+    List<String> events = getMessagesFromSavedParseExceptions(savedParseExceptions);
+    return Response.ok(events).build();
+  }
+
+
+  @GET
+  @Path("/rowStats")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getRowStats(
+      @Context final HttpServletRequest req,
+      @QueryParam("windows") List<Integer> windows
+  )
+  {
+    authorizationCheck(req, Action.READ);
+    Map<String, Object> returnMap = Maps.newHashMap();
+    returnMap.put(
+        "totals",
+        TaskMetricsUtils.makeIngestionRowMetrics(
+            fireDepartmentMetrics.processed(),
+            fireDepartmentMetrics.unparseable(),
+            fireDepartmentMetrics.thrownAway()
+        )
+    );
+
+    if (movingAverageCollector != null) {
+      returnMap.put("startTime", movingAverageCollector.getStartTime());
+      returnMap.put("stopTime", movingAverageCollector.getStopTime());
+
+      for (Integer windowSize : windows) {
+        if (windowSize != null) {
+          returnMap.put(
+              StringUtils.format("%ds", windowSize),
+              movingAverageCollector.getAverages(windowSize)
+          );
+        }
+      }
+    }
+
+    return Response.ok(returnMap).build();
+  }
+
+  /**
+   * Authorizes action to be performed on this task's datasource
+   *
+   * @return authorization result
+   */
+  private Access authorizationCheck(final HttpServletRequest req, Action action)
+  {
+    ResourceAction resourceAction = new ResourceAction(
+        new Resource(ingestionSchema.getDataSchema().getDataSource(), ResourceType.DATASOURCE),
+        action
+    );
+
+    Access access = AuthorizationUtils.authorizeResourceAction(req, resourceAction, authorizerMapper);
+    if (!access.isAllowed()) {
+      throw new ForbiddenException(access.toString());
+    }
+
+    return access;
+  }
+
 
   @JsonProperty("spec")
   public IndexIngestionSpec getIngestionSchema()
@@ -261,10 +384,37 @@ public class IndexTask extends AbstractTask
       dataSchema = ingestionSchema.getDataSchema();
     }
 
-    if (generateAndPublishSegments(toolbox, dataSchema, shardSpecs, versions, firehoseFactory, firehoseTempDir)) {
-      return TaskStatus.success(getId());
-    } else {
-      return TaskStatus.failure(getId());
+    try {
+      if (chatHandlerProvider.isPresent()) {
+        log.info("Found chat handler of class[%s]", chatHandlerProvider.get().getClass().getName());
+        chatHandlerProvider.get().register(getId(), this, false);
+      } else {
+        log.warn("No chat handler detected");
+      }
+
+      return generateAndPublishSegments(toolbox, dataSchema, shardSpecs, versions, firehoseFactory, firehoseTempDir);
+    }
+    catch (Exception e) {
+      log.error(e, "Encountered exception in generateAndPublishSegments.");
+
+      Map<String, Object> context = Maps.newHashMap();
+      List<String> savedParseExceptionMessages = getMessagesFromSavedParseExceptions(savedParseExceptions);
+      if (savedParseExceptionMessages != null) {
+        context.put("unparseableEvents", savedParseExceptionMessages);
+      }
+
+      return TaskStatus.failure(
+          getId(),
+          fireDepartmentMetrics == null ? null :
+          FireDepartmentMetrics.getRowMetricsFromFireDepartmentMetrics(fireDepartmentMetrics),
+          e.getMessage(),
+          context
+      );
+    }
+    finally {
+      if (chatHandlerProvider.isPresent()) {
+        chatHandlerProvider.get().unregister(getId());
+      }
     }
   }
 
@@ -508,7 +658,9 @@ public class IndexTask extends AbstractTask
           }
         }
         catch (ParseException e) {
-          if (ingestionSchema.getTuningConfig().isReportParseExceptions()) {
+          // perform full row stats collection later in generateAndPublishSegments(),
+          // but fail early if we hit the parse exception limit
+          if (unparseable >= ingestionSchema.getTuningConfig().getMaxParseExceptions()) {
             throw e;
           } else {
             unparseable++;
@@ -559,7 +711,7 @@ public class IndexTask extends AbstractTask
    *
    * @return true if generated segments are successfully published, otherwise false
    */
-  private boolean generateAndPublishSegments(
+  private TaskStatus generateAndPublishSegments(
       final TaskToolbox toolbox,
       final DataSchema dataSchema,
       final ShardSpecs shardSpecs,
@@ -572,7 +724,7 @@ public class IndexTask extends AbstractTask
     final FireDepartment fireDepartmentForMetrics = new FireDepartment(
         dataSchema, new RealtimeIOConfig(null, null, null), null
     );
-    final FireDepartmentMetrics fireDepartmentMetrics = fireDepartmentForMetrics.getMetrics();
+    fireDepartmentMetrics = fireDepartmentForMetrics.getMetrics();
 
     if (toolbox.getMonitorScheduler() != null) {
       toolbox.getMonitorScheduler().addMonitor(
@@ -656,6 +808,13 @@ public class IndexTask extends AbstractTask
     ) {
       driver.startJob();
 
+      movingAverageCollector = new TimeWindowMovingAverageCollector(
+          1000,
+          60,
+          new FireDepartmentMetricsTaskMetricsGetter(fireDepartmentMetrics)
+      );
+      movingAverageCollector.start();
+
       while (firehose.hasMore()) {
         try {
           final InputRow inputRow = firehose.nextRow();
@@ -663,6 +822,14 @@ public class IndexTask extends AbstractTask
           if (inputRow == null) {
             fireDepartmentMetrics.incrementThrownAway();
             continue;
+          }
+
+          if (!Intervals.ETERNITY.contains(inputRow.getTimestamp())) {
+            final String errorMsg = StringUtils.format(
+                "Encountered row with timestamp that cannot be represented as a long: [%s]",
+                inputRow
+            );
+            throw new ParseException(errorMsg);
           }
 
           final Optional<Interval> optInterval = granularitySpec.bucketInterval(inputRow.getTimestamp());
@@ -701,12 +868,25 @@ public class IndexTask extends AbstractTask
           }
 
           fireDepartmentMetrics.incrementProcessed();
+
+          if (addResult.getParseException() != null) {
+            throw addResult.getParseException();
+          }
         }
         catch (ParseException e) {
-          if (tuningConfig.isReportParseExceptions()) {
-            throw e;
-          } else {
-            fireDepartmentMetrics.incrementUnparseable();
+          fireDepartmentMetrics.incrementUnparseable();
+
+          if (tuningConfig.isLogParseExceptions()) {
+            log.error(e, "Encountered parse exception:");
+          }
+
+          if (savedParseExceptions != null) {
+            savedParseExceptions.add(e);
+          }
+
+          if (fireDepartmentMetrics.unparseable() > tuningConfig.getMaxParseExceptions()) {
+            log.error("Max parse exceptions exceeded, terminating task...");
+            throw new RuntimeException("Max parse exceptions exceeded, terminating task...", e);
           }
         }
       }
@@ -719,9 +899,20 @@ public class IndexTask extends AbstractTask
           pushTimeout
       );
 
+      Map<String, Object> context = Maps.newHashMap();
+      List<String> savedParseExceptionMessages = getMessagesFromSavedParseExceptions(savedParseExceptions);
+      if (savedParseExceptionMessages != null) {
+        context.put("unparseableEvents", savedParseExceptionMessages);
+      }
+
       if (published == null) {
         log.error("Failed to publish segments, aborting!");
-        return false;
+        return TaskStatus.failure(
+            getId(),
+            FireDepartmentMetrics.getRowMetricsFromFireDepartmentMetrics(fireDepartmentMetrics),
+            "Failed to publish segments.",
+            context
+        );
       } else {
         log.info(
             "Processed[%,d] events, unparseable[%,d], thrownAway[%,d].",
@@ -737,12 +928,37 @@ public class IndexTask extends AbstractTask
                 )
             )
         );
-        return true;
+        return TaskStatus.success(
+            getId(),
+            FireDepartmentMetrics.getRowMetricsFromFireDepartmentMetrics(fireDepartmentMetrics),
+            null,
+            context
+        );
       }
     }
     catch (TimeoutException | ExecutionException e) {
       throw Throwables.propagate(e);
     }
+    finally {
+      if (movingAverageCollector != null) {
+        movingAverageCollector.stop();
+      }
+    }
+  }
+
+  @Nullable
+  public static List<String> getMessagesFromSavedParseExceptions(CircularBuffer<Throwable> savedParseExceptions)
+  {
+    if (savedParseExceptions == null) {
+      return null;
+    }
+
+    List<String> events = new ArrayList<>();
+    for (int i = 0; i < savedParseExceptions.size(); i++) {
+      events.add(savedParseExceptions.getLatest(i).getMessage());
+    }
+
+    return events;
   }
 
   private static boolean exceedMaxRowsInSegment(int numRowsInSegment, IndexTuningConfig indexTuningConfig)
@@ -945,6 +1161,10 @@ public class IndexTask extends AbstractTask
     private final boolean forceGuaranteedRollup;
     private final boolean reportParseExceptions;
     private final long pushTimeout;
+    private final boolean logParseExceptions;
+    private final int maxParseExceptions;
+    private final int maxSavedParseExceptions;
+
     @Nullable
     private final SegmentWriteOutMediumFactory segmentWriteOutMediumFactory;
 
@@ -961,10 +1181,13 @@ public class IndexTask extends AbstractTask
         @JsonProperty("buildV9Directly") @Nullable Boolean buildV9Directly,
         @JsonProperty("forceExtendableShardSpecs") @Nullable Boolean forceExtendableShardSpecs,
         @JsonProperty("forceGuaranteedRollup") @Nullable Boolean forceGuaranteedRollup,
-        @JsonProperty("reportParseExceptions") @Nullable Boolean reportParseExceptions,
+        @Deprecated @JsonProperty("reportParseExceptions") @Nullable Boolean reportParseExceptions,
         @JsonProperty("publishTimeout") @Nullable Long publishTimeout, // deprecated
         @JsonProperty("pushTimeout") @Nullable Long pushTimeout,
-        @JsonProperty("segmentWriteOutMediumFactory") @Nullable SegmentWriteOutMediumFactory segmentWriteOutMediumFactory
+        @JsonProperty("segmentWriteOutMediumFactory") @Nullable SegmentWriteOutMediumFactory segmentWriteOutMediumFactory,
+        @JsonProperty("logParseExceptions") @Nullable Boolean logParseExceptions,
+        @JsonProperty("maxParseExceptions") @Nullable Integer maxParseExceptions,
+        @JsonProperty("maxSavedParseExceptions") @Nullable Integer maxSavedParseExceptions
     )
     {
       this(
@@ -979,13 +1202,16 @@ public class IndexTask extends AbstractTask
           reportParseExceptions,
           pushTimeout != null ? pushTimeout : publishTimeout,
           null,
-          segmentWriteOutMediumFactory
+          segmentWriteOutMediumFactory,
+          logParseExceptions,
+          maxParseExceptions,
+          maxSavedParseExceptions
       );
     }
 
     private IndexTuningConfig()
     {
-      this(null, null, null, null, null, null, null, null, null, null, null, null);
+      this(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     private IndexTuningConfig(
@@ -1000,7 +1226,10 @@ public class IndexTask extends AbstractTask
         @Nullable Boolean reportParseExceptions,
         @Nullable Long pushTimeout,
         @Nullable File basePersistDirectory,
-        @Nullable SegmentWriteOutMediumFactory segmentWriteOutMediumFactory
+        @Nullable SegmentWriteOutMediumFactory segmentWriteOutMediumFactory,
+        @Nullable Boolean logParseExceptions,
+        @Nullable Integer maxParseExceptions,
+        @Nullable Integer maxSavedParseExceptions
     )
     {
       Preconditions.checkArgument(
@@ -1030,6 +1259,17 @@ public class IndexTask extends AbstractTask
       );
 
       this.segmentWriteOutMediumFactory = segmentWriteOutMediumFactory;
+
+      if (this.reportParseExceptions) {
+        this.maxParseExceptions = 0;
+        this.maxSavedParseExceptions = 0;
+      } else {
+        this.maxParseExceptions = maxParseExceptions == null ? TuningConfig.DEFAULT_MAX_PARSE_EXCEPTIONS : maxParseExceptions;
+        this.maxSavedParseExceptions = maxSavedParseExceptions == null
+                                        ? TuningConfig.DEFAULT_MAX_SAVED_PARSE_EXCEPTIONS
+                                        : maxSavedParseExceptions;
+      }
+      this.logParseExceptions = logParseExceptions == null ? TuningConfig.DEFAULT_LOG_PARSE_EXCEPTIONS : logParseExceptions;
     }
 
     private static Integer initializeTargetPartitionSize(Integer numShards, Integer targetPartitionSize)
@@ -1066,7 +1306,10 @@ public class IndexTask extends AbstractTask
           reportParseExceptions,
           pushTimeout,
           dir,
-          segmentWriteOutMediumFactory
+          segmentWriteOutMediumFactory,
+          logParseExceptions,
+          maxParseExceptions,
+          maxSavedParseExceptions
       );
     }
 
@@ -1150,6 +1393,24 @@ public class IndexTask extends AbstractTask
       return pushTimeout;
     }
 
+    @JsonProperty
+    public boolean isLogParseExceptions()
+    {
+      return logParseExceptions;
+    }
+
+    @JsonProperty
+    public int getMaxParseExceptions()
+    {
+      return maxParseExceptions;
+    }
+
+    @JsonProperty
+    public int getMaxSavedParseExceptions()
+    {
+      return maxSavedParseExceptions;
+    }
+
     @Override
     public Period getIntermediatePersistPeriod()
     {
@@ -1185,7 +1446,10 @@ public class IndexTask extends AbstractTask
              Objects.equals(numShards, that.numShards) &&
              Objects.equals(indexSpec, that.indexSpec) &&
              Objects.equals(basePersistDirectory, that.basePersistDirectory) &&
-             Objects.equals(segmentWriteOutMediumFactory, that.segmentWriteOutMediumFactory);
+             Objects.equals(segmentWriteOutMediumFactory, that.segmentWriteOutMediumFactory) &&
+             Objects.equals(logParseExceptions, that.logParseExceptions) &&
+             Objects.equals(maxParseExceptions, that.maxParseExceptions) &&
+             Objects.equals(maxSavedParseExceptions, that.maxSavedParseExceptions);
     }
 
     @Override
@@ -1203,7 +1467,10 @@ public class IndexTask extends AbstractTask
           forceGuaranteedRollup,
           reportParseExceptions,
           pushTimeout,
-          segmentWriteOutMediumFactory
+          segmentWriteOutMediumFactory,
+          logParseExceptions,
+          maxParseExceptions,
+          maxSavedParseExceptions
       );
     }
   }
