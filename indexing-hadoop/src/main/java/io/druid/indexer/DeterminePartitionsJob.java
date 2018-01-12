@@ -100,6 +100,8 @@ public class DeterminePartitionsJob implements Jobby
 
   private final HadoopDruidIndexerConfig config;
 
+  private String failureCause;
+
   public DeterminePartitionsJob(
       HadoopDruidIndexerConfig config
   )
@@ -155,6 +157,7 @@ public class DeterminePartitionsJob implements Jobby
 
         if (!groupByJob.waitForCompletion(true)) {
           log.error("Job failed: %s", groupByJob.getJobID());
+          failureCause = Utils.getFailureMessage(groupByJob, config.JSON_MAPPER);
           return false;
         }
       } else {
@@ -212,6 +215,7 @@ public class DeterminePartitionsJob implements Jobby
 
       if (!dimSelectionJob.waitForCompletion(true)) {
         log.error("Job failed: %s", dimSelectionJob.getJobID().toString());
+        failureCause = Utils.getFailureMessage(dimSelectionJob, config.JSON_MAPPER);
         return false;
       }
 
@@ -253,6 +257,14 @@ public class DeterminePartitionsJob implements Jobby
     catch (Exception e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  @Override
+  public Map<String, Object> getStats()
+  {
+    Map<String, Object> stats = Maps.newHashMap();
+    stats.put("errorMsg", failureCause);
+    return stats;
   }
 
   public static class DeterminePartitionsGroupByMapper extends HadoopDruidIndexerMapper<BytesWritable, NullWritable>

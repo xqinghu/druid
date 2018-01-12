@@ -605,7 +605,10 @@ public class OverlordResource
                  DateTimes.EPOCH,
                  status.getStatusCode(),
                  status.getDuration(),
-                 TaskLocation.unknown()
+                 TaskLocation.unknown(),
+                 status.getMetrics(),
+                 status.getErrorMsg(),
+                 status.getContext()
              )
         )
         .collect(Collectors.toList());
@@ -742,7 +745,10 @@ public class OverlordResource
                             workItem.getQueueInsertionTime(),
                             null,
                             null,
-                            workItem.getLocation()
+                            workItem.getLocation(),
+                            null,
+                            null,
+                            null
                         );
                       }
                     }

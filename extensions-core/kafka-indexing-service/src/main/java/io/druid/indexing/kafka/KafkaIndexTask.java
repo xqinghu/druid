@@ -49,6 +49,8 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.discovery.DiscoveryDruidNode;
 import io.druid.discovery.DruidNodeDiscoveryProvider;
 import io.druid.discovery.LookupNodeService;
+import io.druid.indexer.TaskMetricsUtils;
+import io.druid.indexer.TimeWindowMovingAverageCollector;
 import io.druid.indexing.appenderator.ActionBasedSegmentAllocator;
 import io.druid.indexing.appenderator.ActionBasedUsedSegmentChecker;
 import io.druid.indexing.common.TaskStatus;
@@ -58,6 +60,7 @@ import io.druid.indexing.common.actions.ResetDataSourceMetadataAction;
 import io.druid.indexing.common.actions.SegmentTransactionalInsertAction;
 import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.common.task.AbstractTask;
+import io.druid.indexing.common.task.IndexTask;
 import io.druid.indexing.common.task.RealtimeIndexTask;
 import io.druid.indexing.common.task.TaskResource;
 import io.druid.indexing.common.task.Tasks;
@@ -80,6 +83,7 @@ import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeIOConfig;
 import io.druid.segment.realtime.FireDepartment;
 import io.druid.segment.realtime.FireDepartmentMetrics;
+import io.druid.segment.realtime.FireDepartmentMetricsTaskMetricsGetter;
 import io.druid.segment.realtime.RealtimeMetricsMonitor;
 import io.druid.segment.realtime.appenderator.Appenderator;
 import io.druid.segment.realtime.appenderator.AppenderatorDriverAddResult;
@@ -99,6 +103,7 @@ import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceAction;
 import io.druid.server.security.ResourceType;
 import io.druid.timeline.DataSegment;
+import io.druid.utils.CircularBuffer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -246,6 +251,9 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
   private volatile CopyOnWriteArrayList<SequenceMetadata> sequences;
   private ListeningExecutorService publishExecService;
   private final boolean useLegacy;
+  private TimeWindowMovingAverageCollector movingAverageCollector;
+  private CircularBuffer<Throwable> savedParseExceptions;
+
 
   @JsonCreator
   public KafkaIndexTask(
@@ -282,6 +290,9 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
       useLegacy = false;
     } else {
       useLegacy = true;
+    }
+    if (tuningConfig.getMaxSavedParseExceptions() > 0) {
+      savedParseExceptions = new CircularBuffer<Throwable>(tuningConfig.getMaxSavedParseExceptions());
     }
     resetNextCheckpointTime();
   }
@@ -414,11 +425,33 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
   @Override
   public TaskStatus run(final TaskToolbox toolbox) throws Exception
   {
-    // for backwards compatibility, should be remove from versions greater than 0.12.x
-    if (useLegacy) {
-      return runLegacy(toolbox);
+    try {
+      // for backwards compatibility, should be remove from versions greater than 0.12.x
+      if (useLegacy) {
+        return runInternalLegacy(toolbox);
+      } else {
+        return runInternal(toolbox);
+      }
     }
+    catch (Exception e) {
+      log.error(e, "Encountered exception while running task.");
+      Map<String, Object> context = Maps.newHashMap();
+      List<String> savedParseExceptionMessages = IndexTask.getMessagesFromSavedParseExceptions(savedParseExceptions);
+      if (savedParseExceptionMessages != null) {
+        context.put("unparseableEvents", savedParseExceptionMessages);
+      }
+      return TaskStatus.failure(
+          getId(),
+          fireDepartmentMetrics == null ? null :
+          FireDepartmentMetrics.getRowMetricsFromFireDepartmentMetrics(fireDepartmentMetrics),
+          e.getMessage(),
+          context
+      );
+    }
+  }
 
+  private TaskStatus runInternal(final TaskToolbox toolbox) throws Exception
+  {
     log.info("Starting up!");
 
     startTime = DateTimes.nowUtc();
@@ -595,6 +628,13 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
 
       Set<Integer> assignment = assignPartitionsAndSeekToNext(consumer, topic);
 
+      movingAverageCollector = new TimeWindowMovingAverageCollector(
+          1000,
+          60,
+          new FireDepartmentMetricsTaskMetricsGetter(fireDepartmentMetrics)
+      );
+      movingAverageCollector.start();
+
       // Main loop.
       // Could eventually support leader/follower mode (for keeping replicas more in sync)
       boolean stillReading = !assignment.isEmpty();
@@ -731,6 +771,10 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
                     }
 
                     fireDepartmentMetrics.incrementProcessed();
+
+                    if (addResult.getParseException() != null) {
+                      throw addResult.getParseException();
+                    }
                   } else {
                     fireDepartmentMetrics.incrementThrownAway();
                   }
@@ -757,17 +801,24 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
                 }
               }
               catch (ParseException e) {
-                if (tuningConfig.isReportParseExceptions()) {
-                  throw e;
-                } else {
-                  log.debug(
+                fireDepartmentMetrics.incrementUnparseable();
+
+                if (tuningConfig.isLogParseExceptions()) {
+                  log.error(
                       e,
-                      "Dropping unparseable row from partition[%d] offset[%,d].",
+                      "Encountered parse exception on row from partition[%d] offset[%d]",
                       record.partition(),
                       record.offset()
                   );
+                }
 
-                  fireDepartmentMetrics.incrementUnparseable();
+                if (savedParseExceptions != null) {
+                  savedParseExceptions.add(e);
+                }
+
+                if (fireDepartmentMetrics.unparseable() > tuningConfig.getMaxParseExceptions()) {
+                  log.error("Max parse exceptions exceeded, terminating task...");
+                  throw new RuntimeException("Max parse exceptions exceeded, terminating task...", e);
                 }
               }
 
@@ -813,6 +864,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
       }
       finally {
         log.info("Persisting all pending data");
+        movingAverageCollector.stop();
         driver.persist(committerSupplier.get()); // persist pending data
       }
 
@@ -904,10 +956,21 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
       toolbox.getDataSegmentServerAnnouncer().unannounce();
     }
 
-    return success();
+    Map<String, Object> context = Maps.newHashMap();
+    List<String> savedParseExceptionMessages = IndexTask.getMessagesFromSavedParseExceptions(savedParseExceptions);
+    if (savedParseExceptionMessages != null) {
+      context.put("unparseableEvents", savedParseExceptionMessages);
+    }
+
+    return TaskStatus.success(
+        getId(),
+        FireDepartmentMetrics.getRowMetricsFromFireDepartmentMetrics(fireDepartmentMetrics),
+        null,
+        context
+    );
   }
 
-  private TaskStatus runLegacy(final TaskToolbox toolbox) throws Exception
+  private TaskStatus runInternalLegacy(final TaskToolbox toolbox) throws Exception
   {
     log.info("Starting up!");
     startTime = DateTimes.nowUtc();
@@ -948,6 +1011,13 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
             lookupNodeService.getName(), lookupNodeService
         )
     );
+
+    movingAverageCollector = new TimeWindowMovingAverageCollector(
+        1000,
+        60,
+        new FireDepartmentMetricsTaskMetricsGetter(fireDepartmentMetrics)
+    );
+    movingAverageCollector.start();
 
     try (
             final Appenderator appenderator0 = newAppenderator(fireDepartmentMetrics, toolbox);
@@ -1127,6 +1197,10 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
                       throw new ISE("Could not allocate segment for row with timestamp[%s]", row.getTimestamp());
                     }
                     fireDepartmentMetrics.incrementProcessed();
+
+                    if (addResult.getParseException() != null) {
+                      throw addResult.getParseException();
+                    }
                   } else {
                     fireDepartmentMetrics.incrementThrownAway();
                   }
@@ -1140,17 +1214,24 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
                 ));
               }
               catch (ParseException e) {
-                if (tuningConfig.isReportParseExceptions()) {
-                  throw e;
-                } else {
-                  log.debug(
+                fireDepartmentMetrics.incrementUnparseable();
+
+                if (tuningConfig.isLogParseExceptions()) {
+                  log.error(
                       e,
-                      "Dropping unparseable row from partition[%d] offset[%,d].",
+                      "Encountered parse exception on row from partition[%d] offset[%d]",
                       record.partition(),
                       record.offset()
                   );
+                }
 
-                  fireDepartmentMetrics.incrementUnparseable();
+                if (savedParseExceptions != null) {
+                  savedParseExceptions.add(e);
+                }
+
+                if (fireDepartmentMetrics.unparseable() > tuningConfig.getMaxParseExceptions()) {
+                  log.error("Max parse exceptions exceeded, terminating task...");
+                  throw e;
                 }
               }
 
@@ -1171,6 +1252,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
         throw e;
       }
       finally {
+        movingAverageCollector.stop();
         driver.persist(committerSupplier.get()); // persist pending data
       }
 
@@ -1272,7 +1354,18 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
       toolbox.getDataSegmentServerAnnouncer().unannounce();
     }
 
-    return success();
+    Map<String, Object> context = Maps.newHashMap();
+    List<String> savedParseExceptionMessages = IndexTask.getMessagesFromSavedParseExceptions(savedParseExceptions);
+    if (savedParseExceptionMessages != null) {
+      context.put("unparseableEvents", savedParseExceptionMessages);
+    }
+
+    return TaskStatus.success(
+        getId(),
+        FireDepartmentMetrics.getRowMetricsFromFireDepartmentMetrics(fireDepartmentMetrics),
+        null,
+        context
+    );
   }
 
   private void checkAndMaybeThrowException()
@@ -1489,6 +1582,54 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
   {
     authorizationCheck(req, Action.WRITE);
     return setEndOffsets(offsets, resume, finish);
+  }
+
+  @GET
+  @Path("/rowStats")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getRowStats(
+      @Context final HttpServletRequest req,
+      @QueryParam("windows") List<Integer> windows
+  )
+  {
+    authorizationCheck(req, Action.READ);
+    Map<String, Object> returnMap = Maps.newHashMap();
+    returnMap.put(
+        "totals",
+        TaskMetricsUtils.makeIngestionRowMetrics(
+            fireDepartmentMetrics.processed(),
+            fireDepartmentMetrics.unparseable(),
+            fireDepartmentMetrics.thrownAway()
+        )
+    );
+
+    if (movingAverageCollector != null) {
+      returnMap.put("startTime", movingAverageCollector.getStartTime());
+      returnMap.put("stopTime", movingAverageCollector.getStopTime());
+
+      for (Integer windowSize : windows) {
+        if (windowSize != null) {
+          returnMap.put(
+              StringUtils.format("%ds", windowSize),
+              movingAverageCollector.getAverages(windowSize)
+          );
+        }
+      }
+    }
+
+    return Response.ok(returnMap).build();
+  }
+
+  @GET
+  @Path("/unparseableEvents")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getUnparseableEvents(
+      @Context final HttpServletRequest req
+  )
+  {
+    authorizationCheck(req, Action.READ);
+    List<String> events = IndexTask.getMessagesFromSavedParseExceptions(savedParseExceptions);
+    return Response.ok(events).build();
   }
 
   public Response setEndOffsets(
@@ -2037,12 +2178,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
           "Encountered row with timestamp that cannot be represented as a long: [%s]",
           row
       );
-      log.debug(errorMsg);
-      if (tuningConfig.isReportParseExceptions()) {
-        throw new ParseException(errorMsg);
-      } else {
-        return false;
-      }
+      throw new ParseException(errorMsg);
     }
 
     if (log.isDebugEnabled()) {

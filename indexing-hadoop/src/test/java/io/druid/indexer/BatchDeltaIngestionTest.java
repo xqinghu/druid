@@ -282,7 +282,7 @@ public class BatchDeltaIngestionTest
   ) throws Exception
   {
     IndexGeneratorJob job = new IndexGeneratorJob(config);
-    JobHelper.runJobs(ImmutableList.<Jobby>of(job), config);
+    Assert.assertTrue(JobHelper.runJobs(ImmutableList.<Jobby>of(job), config));
 
     File segmentFolder = new File(
         StringUtils.format(
@@ -394,6 +394,8 @@ public class BatchDeltaIngestionTest
                 null,
                 false,
                 false,
+                null,
+                null,
                 null
             )
         )

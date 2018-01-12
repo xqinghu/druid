@@ -17,20 +17,36 @@
  * under the License.
  */
 
-package io.druid.segment.indexing;
+package io.druid.segment.incremental;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.java.util.common.parsers.ParseException;
 
-/**
- */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "realtime", value = RealtimeTuningConfig.class)
-})
-public interface TuningConfig
+import javax.annotation.Nullable;
+
+public class IncrementalIndexAddResult
 {
-  boolean DEFAULT_LOG_PARSE_EXCEPTIONS = false;
-  int DEFAULT_MAX_PARSE_EXCEPTIONS = Integer.MAX_VALUE;
-  int DEFAULT_MAX_SAVED_PARSE_EXCEPTIONS = 0;
+  private final int rowCount;
+
+  @Nullable
+  private final ParseException parseException;
+
+  public IncrementalIndexAddResult(
+      int rowCount,
+      @Nullable ParseException parseException
+  )
+  {
+    this.rowCount = rowCount;
+    this.parseException = parseException;
+  }
+
+  public int getRowCount()
+  {
+    return rowCount;
+  }
+
+  @Nullable
+  public ParseException getParseException()
+  {
+    return parseException;
+  }
 }
