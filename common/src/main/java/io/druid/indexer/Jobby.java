@@ -19,9 +19,24 @@
 
 package io.druid.indexer;
 
+import javax.annotation.Nullable;
+import java.util.Map;
+
 /**
  */
 public interface Jobby
 {
   boolean run();
+
+  @Nullable
+  default Map<String, Object> getStats()
+  {
+    throw new UnsupportedOperationException("This Jobby does not implement getJobStats().");
+  }
+
+  @Nullable
+  default String getErrorMessage()
+  {
+    throw new UnsupportedOperationException("This Jobby does not implement getErrorMessage().");
+  }
 }

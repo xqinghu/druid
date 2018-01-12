@@ -17,20 +17,28 @@
  * under the License.
  */
 
-package io.druid.segment.indexing;
+package io.druid.indexer;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.collect.Maps;
 
-/**
- */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "realtime", value = RealtimeTuningConfig.class)
-})
-public interface TuningConfig
+import java.util.Map;
+
+public class TaskMetricsUtils
 {
-  boolean DEFAULT_LOG_PARSE_EXCEPTIONS = false;
-  int DEFAULT_MAX_PARSE_EXCEPTIONS = Integer.MAX_VALUE;
-  int DEFAULT_MAX_SAVED_PARSE_EXCEPTIONS = 0;
+  public static final String ROWS_PROCESSED = "rowsProcessed";
+  public static final String ROWS_UNPARSEABLE = "rowsUnparseable";
+  public static final String ROWS_THROWN_AWAY = "rowsThrownAway";
+
+  public static Map<String, Object> makeIngestionRowMetrics(
+      long rowsProcessed,
+      long rowsUnparseable,
+      long rowsThrownAway
+  )
+  {
+    Map<String, Object> metricsMap = Maps.newHashMap();
+    metricsMap.put(ROWS_PROCESSED, rowsProcessed);
+    metricsMap.put(ROWS_UNPARSEABLE, rowsUnparseable);
+    metricsMap.put(ROWS_THROWN_AWAY, rowsThrownAway);
+    return metricsMap;
+  }
 }

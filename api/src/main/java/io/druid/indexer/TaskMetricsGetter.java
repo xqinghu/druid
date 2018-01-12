@@ -17,20 +17,13 @@
  * under the License.
  */
 
-package io.druid.segment.indexing;
+package io.druid.indexer;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import java.util.List;
+import java.util.Map;
 
-/**
- */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "realtime", value = RealtimeTuningConfig.class)
-})
-public interface TuningConfig
+public interface TaskMetricsGetter
 {
-  boolean DEFAULT_LOG_PARSE_EXCEPTIONS = false;
-  int DEFAULT_MAX_PARSE_EXCEPTIONS = Integer.MAX_VALUE;
-  int DEFAULT_MAX_SAVED_PARSE_EXCEPTIONS = 0;
+  List<String> getKeys();
+  Map<String, Double> getMetrics();
 }

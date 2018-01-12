@@ -20,7 +20,9 @@
 package io.druid.segment.realtime;
 
 import com.google.common.base.Preconditions;
+import io.druid.indexer.TaskMetricsUtils;
 
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -249,4 +251,12 @@ public class FireDepartmentMetrics
     return this;
   }
 
+  public static Map<String, Object> getRowMetricsFromFireDepartmentMetrics(FireDepartmentMetrics fdm)
+  {
+    return TaskMetricsUtils.makeIngestionRowMetrics(
+        fdm.processed(),
+        fdm.unparseable(),
+        fdm.thrownAway()
+    );
+  }
 }
