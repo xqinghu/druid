@@ -49,9 +49,9 @@ import io.druid.segment.TestHelper;
 import io.druid.segment.column.ValueType;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.virtual.ExpressionVirtualColumn;
-import io.druid.server.security.NoopEscalator;
 import io.druid.server.security.AuthConfig;
 import io.druid.server.security.AuthTestUtils;
+import io.druid.server.security.NoopEscalator;
 import io.druid.sql.calcite.filtration.Filtration;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
@@ -310,7 +310,7 @@ public class QuantileSqlAggregatorTest
       final PlannerResult plannerResult = planner.plan(sql);
 
       // Verify results
-      final List<Object[]> results = plannerResult.run().toList();
+      final List<Object[]> results = Sequences.toList(plannerResult.run(), new ArrayList<Object[]>());
       final List<Object[]> expectedResults = ImmutableList.of(
           new Object[]{7.0, 8.26386833190918}
       );
