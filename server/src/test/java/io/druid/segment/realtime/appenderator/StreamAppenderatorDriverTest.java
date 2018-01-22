@@ -27,8 +27,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
@@ -44,10 +42,7 @@ import io.druid.segment.realtime.FireDepartmentMetrics;
 import io.druid.segment.realtime.plumber.SegmentHandoffNotifier;
 import io.druid.segment.realtime.plumber.SegmentHandoffNotifierFactory;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.TimelineObjectHolder;
-import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.NumberedShardSpec;
-import io.druid.timeline.partition.PartitionChunk;
 import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Assert;
@@ -66,7 +61,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class AppenderatorDriverTest
+public class StreamAppenderatorDriverTest
 {
   private static final String DATA_SOURCE = "foo";
   private static final String VERSION = "abc123";
@@ -94,10 +89,10 @@ public class AppenderatorDriverTest
       )
   );
 
-  SegmentAllocator allocator;
-  AppenderatorTester appenderatorTester;
-  TestSegmentHandoffNotifierFactory segmentHandoffNotifierFactory;
-  AppenderatorDriver driver;
+  private SegmentAllocator allocator;
+  private AppenderatorTester appenderatorTester;
+  private TestSegmentHandoffNotifierFactory segmentHandoffNotifierFactory;
+  private StreamAppenderatorDriver driver;
 
   @Before
   public void setUp()
@@ -105,11 +100,11 @@ public class AppenderatorDriverTest
     appenderatorTester = new AppenderatorTester(MAX_ROWS_IN_MEMORY);
     allocator = new TestSegmentAllocator(DATA_SOURCE, Granularities.HOUR);
     segmentHandoffNotifierFactory = new TestSegmentHandoffNotifierFactory();
-    driver = new AppenderatorDriver(
+    driver = new StreamAppenderatorDriver(
         appenderatorTester.getAppenderator(),
         allocator,
         segmentHandoffNotifierFactory,
-        new TestUsedSegmentChecker(),
+        new TestUsedSegmentChecker(appenderatorTester),
         OBJECT_MAPPER,
         new FireDepartmentMetrics()
     );
@@ -139,8 +134,6 @@ public class AppenderatorDriverTest
         committerSupplier.get(),
         ImmutableList.of("dummy")
     ).get(PUBLISH_TIMEOUT, TimeUnit.MILLISECONDS);
-    Assert.assertFalse(driver.getActiveSegments().containsKey("dummy"));
-    Assert.assertFalse(driver.getPublishPendingSegments().containsKey("dummy"));
     final SegmentsAndMetadata segmentsAndMetadata = driver.registerHandoff(published)
                                                           .get(HANDOFF_CONDITION_TIMEOUT, TimeUnit.MILLISECONDS);
 
@@ -186,8 +179,6 @@ public class AppenderatorDriverTest
         committerSupplier.get(),
         ImmutableList.of("dummy")
     ).get(PUBLISH_TIMEOUT, TimeUnit.MILLISECONDS);
-    Assert.assertFalse(driver.getActiveSegments().containsKey("dummy"));
-    Assert.assertFalse(driver.getPublishPendingSegments().containsKey("dummy"));
     final SegmentsAndMetadata segmentsAndMetadata = driver.registerHandoff(published)
                                                           .get(HANDOFF_CONDITION_TIMEOUT, TimeUnit.MILLISECONDS);
     Assert.assertEquals(numSegments, segmentsAndMetadata.getSegments().size());
@@ -212,8 +203,6 @@ public class AppenderatorDriverTest
         committerSupplier.get(),
         ImmutableList.of("dummy")
     ).get(PUBLISH_TIMEOUT, TimeUnit.MILLISECONDS);
-    Assert.assertFalse(driver.getActiveSegments().containsKey("dummy"));
-    Assert.assertFalse(driver.getPublishPendingSegments().containsKey("dummy"));
     driver.registerHandoff(published).get(HANDOFF_CONDITION_TIMEOUT, TimeUnit.MILLISECONDS);
   }
 
@@ -489,35 +478,6 @@ public class AppenderatorDriverTest
           // Do nothing
         }
       };
-    }
-  }
-
-  private class TestUsedSegmentChecker implements UsedSegmentChecker
-  {
-    @Override
-    public Set<DataSegment> findUsedSegments(Set<SegmentIdentifier> identifiers) throws IOException
-    {
-      final VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>(Ordering.natural());
-      for (DataSegment dataSegment : appenderatorTester.getPushedSegments()) {
-        timeline.add(
-            dataSegment.getInterval(),
-            dataSegment.getVersion(),
-            dataSegment.getShardSpec().createChunk(dataSegment)
-        );
-      }
-
-      final Set<DataSegment> retVal = Sets.newHashSet();
-      for (SegmentIdentifier identifier : identifiers) {
-        for (TimelineObjectHolder<String, DataSegment> holder : timeline.lookup(identifier.getInterval())) {
-          for (PartitionChunk<DataSegment> chunk : holder.getObject()) {
-            if (identifiers.contains(SegmentIdentifier.fromDataSegment(chunk.getObject()))) {
-              retVal.add(chunk.getObject());
-            }
-          }
-        }
-      }
-
-      return retVal;
     }
   }
 }

@@ -202,7 +202,7 @@ public class HadoopIndexTask extends HadoopTask
       TaskLock lock = toolbox.getTaskActionClient().submit(new LockAcquireAction(interval, lockTimeoutMs));
       version = lock.getVersion();
     } else {
-      Iterable<TaskLock> locks = getTaskLocks(toolbox);
+      Iterable<TaskLock> locks = getTaskLocks(toolbox.getTaskActionClient());
       final TaskLock myLock = Iterables.getOnlyElement(locks);
       version = myLock.getVersion();
     }

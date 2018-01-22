@@ -42,7 +42,6 @@ import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.common.guava.ThreadRenamingCallable;
-import io.druid.java.util.common.concurrent.Execs;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.java.util.common.DateTimes;
@@ -51,6 +50,7 @@ import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.RetryUtils;
 import io.druid.java.util.common.StringUtils;
+import io.druid.java.util.common.concurrent.Execs;
 import io.druid.java.util.common.io.Closer;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -94,6 +94,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 /**
  */
@@ -122,6 +125,9 @@ public class AppenderatorImpl implements Appenderator
   // This variable updated in add(), persist(), and drop()
   private final AtomicInteger rowsCurrentlyInMemory = new AtomicInteger();
   private final AtomicInteger totalRows = new AtomicInteger();
+  // Synchronize persisting commitMetadata so that multiple persist threads (if present)
+  // and abandon threads do not step over each other
+  private final Lock commitLock = new ReentrantLock();
 
   private volatile ListeningExecutorService persistExecutor = null;
   private volatile ListeningExecutorService pushExecutor = null;
@@ -186,10 +192,10 @@ public class AppenderatorImpl implements Appenderator
   }
 
   @Override
-  public int add(
+  public AppenderatorAddResult add(
       final SegmentIdentifier identifier,
       final InputRow row,
-      final Supplier<Committer> committerSupplier
+      @Nullable final Supplier<Committer> committerSupplier
   ) throws IndexSizeExceededException, SegmentNotWritableException
   {
     if (!identifier.getDataSource().equals(schema.getDataSource())) {
@@ -228,10 +234,10 @@ public class AppenderatorImpl implements Appenderator
         || System.currentTimeMillis() > nextFlush
         || rowsCurrentlyInMemory.get() >= tuningConfig.getMaxRowsInMemory()) {
       // persistAll clears rowsCurrentlyInMemory, no need to update it.
-      persistAll(committerSupplier.get());
+      persistAll(committerSupplier == null ? null : committerSupplier.get());
     }
 
-    return sink.getNumRows();
+    return new AppenderatorAddResult(identifier, sink.getNumRows());
   }
 
   @Override
@@ -321,29 +327,37 @@ public class AppenderatorImpl implements Appenderator
     // Drop commit metadata, then abandon all segments.
 
     try {
-      final ListenableFuture<?> uncommitFuture = persistExecutor.submit(
-          new Callable<Object>()
-          {
-            @Override
-            public Object call() throws Exception
+      if (persistExecutor != null) {
+        final ListenableFuture<?> uncommitFuture = persistExecutor.submit(
+            new Callable<Object>()
             {
-              objectMapper.writeValue(computeCommitFile(), Committed.nil());
-              return null;
+              @Override
+              public Object call() throws Exception
+              {
+                try {
+                  commitLock.lock();
+                  objectMapper.writeValue(computeCommitFile(), Committed.nil());
+                }
+                finally {
+                  commitLock.unlock();
+                }
+                return null;
+              }
             }
-          }
-      );
+        );
 
-      // Await uncommit.
-      uncommitFuture.get();
+        // Await uncommit.
+        uncommitFuture.get();
 
-      // Drop everything.
-      final List<ListenableFuture<?>> futures = Lists.newArrayList();
-      for (Map.Entry<SegmentIdentifier, Sink> entry : sinks.entrySet()) {
-        futures.add(abandonSegment(entry.getKey(), entry.getValue(), true));
+        // Drop everything.
+        final List<ListenableFuture<?>> futures = Lists.newArrayList();
+        for (Map.Entry<SegmentIdentifier, Sink> entry : sinks.entrySet()) {
+          futures.add(abandonSegment(entry.getKey(), entry.getValue(), true));
+        }
+
+        // Await dropping.
+        Futures.allAsList(futures).get();
       }
-
-      // Await dropping.
-      Futures.allAsList(futures).get();
     }
     catch (ExecutionException e) {
       throw Throwables.propagate(e);
@@ -362,9 +376,9 @@ public class AppenderatorImpl implements Appenderator
   }
 
   @Override
-  public ListenableFuture<Object> persist(Collection<SegmentIdentifier> identifiers, Committer committer)
+  public ListenableFuture<Object> persist(Collection<SegmentIdentifier> identifiers, @Nullable Committer committer)
   {
-    final Map<SegmentIdentifier, Integer> commitHydrants = Maps.newHashMap();
+    final Map<String, Integer> currentHydrants = Maps.newHashMap();
     final List<Pair<FireHydrant, SegmentIdentifier>> indexesToPersist = Lists.newArrayList();
     int numPersistedRows = 0;
     for (SegmentIdentifier identifier : identifiers) {
@@ -373,7 +387,7 @@ public class AppenderatorImpl implements Appenderator
         throw new ISE("No sink for identifier: %s", identifier);
       }
       final List<FireHydrant> hydrants = Lists.newArrayList(sink);
-      commitHydrants.put(identifier, hydrants.size());
+      currentHydrants.put(identifier.getIdentifierAsString(), hydrants.size());
       numPersistedRows += sink.getNumRowsInMemory();
 
       final int limit = sink.isWritable() ? hydrants.size() - 1 : hydrants.size();
@@ -393,7 +407,7 @@ public class AppenderatorImpl implements Appenderator
     log.info("Submitting persist runnable for dataSource[%s]", schema.getDataSource());
 
     final String threadName = StringUtils.format("%s-incremental-persist", schema.getDataSource());
-    final Object commitMetadata = committer.getMetadata();
+    final Object commitMetadata = committer == null ? null : committer.getMetadata();
     final Stopwatch runExecStopwatch = Stopwatch.createStarted();
     final Stopwatch persistStopwatch = Stopwatch.createStarted();
     final ListenableFuture<Object> future = persistExecutor.submit(
@@ -407,25 +421,39 @@ public class AppenderatorImpl implements Appenderator
                 metrics.incrementRowOutputCount(persistHydrant(pair.lhs, pair.rhs));
               }
 
-              log.info(
-                  "Committing metadata[%s] for sinks[%s].", commitMetadata, Joiner.on(", ").join(
-                      Iterables.transform(
-                          commitHydrants.entrySet(),
-                          new Function<Map.Entry<SegmentIdentifier, Integer>, String>()
-                          {
-                            @Override
-                            public String apply(Map.Entry<SegmentIdentifier, Integer> entry)
-                            {
-                              return StringUtils.format("%s:%d", entry.getKey().getIdentifierAsString(), entry.getValue());
-                            }
-                          }
-                      )
-                  )
-              );
+              if (committer != null) {
+                log.info(
+                    "Committing metadata[%s] for sinks[%s].", commitMetadata, Joiner.on(", ").join(
+                        currentHydrants.entrySet()
+                                       .stream()
+                                       .map(entry -> StringUtils.format(
+                                           "%s:%d",
+                                           entry.getKey(),
+                                           entry.getValue()
+                                       ))
+                                       .collect(Collectors.toList())
+                    )
+                );
 
-              committer.run();
-              objectMapper.writeValue(computeCommitFile(), Committed.create(commitHydrants, commitMetadata));
+                committer.run();
 
+                try {
+                  commitLock.lock();
+                  final Map<String, Integer> commitHydrants = Maps.newHashMap();
+                  final Committed oldCommit = readCommit();
+                  if (oldCommit != null) {
+                    // merge current hydrants with existing hydrants
+                    commitHydrants.putAll(oldCommit.getHydrants());
+                  }
+                  commitHydrants.putAll(currentHydrants);
+                  writeCommit(new Committed(commitHydrants, commitMetadata));
+                }
+                finally {
+                  commitLock.unlock();
+                }
+              }
+
+              // return null if committer is null
               return commitMetadata;
             }
             catch (Exception e) {
@@ -456,7 +484,7 @@ public class AppenderatorImpl implements Appenderator
   }
 
   @Override
-  public ListenableFuture<Object> persistAll(final Committer committer)
+  public ListenableFuture<Object> persistAll(@Nullable final Committer committer)
   {
     // Submit persistAll task to the persistExecutor
     return persist(sinks.keySet(), committer);
@@ -465,7 +493,7 @@ public class AppenderatorImpl implements Appenderator
   @Override
   public ListenableFuture<SegmentsAndMetadata> push(
       final Collection<SegmentIdentifier> identifiers,
-      final Committer committer
+      @Nullable final Committer committer
   )
   {
     final Map<SegmentIdentifier, Sink> theSinks = Maps.newHashMap();
@@ -664,8 +692,16 @@ public class AppenderatorImpl implements Appenderator
 
     try {
       shutdownExecutors();
-      Preconditions.checkState(persistExecutor.awaitTermination(365, TimeUnit.DAYS), "persistExecutor not terminated");
-      Preconditions.checkState(pushExecutor.awaitTermination(365, TimeUnit.DAYS), "pushExecutor not terminated");
+      Preconditions.checkState(
+          persistExecutor == null || persistExecutor.awaitTermination(365, TimeUnit.DAYS),
+          "persistExecutor not terminated"
+      );
+      Preconditions.checkState(
+          pushExecutor == null || pushExecutor.awaitTermination(365, TimeUnit.DAYS),
+          "pushExecutor not terminated"
+      );
+      persistExecutor = null;
+      pushExecutor = null;
     }
     catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -935,10 +971,10 @@ public class AppenderatorImpl implements Appenderator
               // Remove this segment from the committed list. This must be done from the persist thread.
               log.info("Removing commit metadata for segment[%s].", identifier);
               try {
-                final File commitFile = computeCommitFile();
-                if (commitFile.exists()) {
-                  final Committed oldCommitted = objectMapper.readValue(commitFile, Committed.class);
-                  objectMapper.writeValue(commitFile, oldCommitted.without(identifier.getIdentifierAsString()));
+                commitLock.lock();
+                final Committed oldCommit = readCommit();
+                if (oldCommit != null) {
+                  writeCommit(oldCommit.without(identifier.getIdentifierAsString()));
                 }
               }
               catch (Exception e) {
@@ -984,6 +1020,23 @@ public class AppenderatorImpl implements Appenderator
         },
         persistExecutor
     );
+  }
+
+  private Committed readCommit() throws IOException
+  {
+    final File commitFile = computeCommitFile();
+    if (commitFile.exists()) {
+      // merge current hydrants with existing hydrants
+      return objectMapper.readValue(commitFile, Committed.class);
+    } else {
+      return null;
+    }
+  }
+
+  private void writeCommit(Committed newCommit) throws IOException
+  {
+    final File commitFile = computeCommitFile();
+    objectMapper.writeValue(commitFile, newCommit);
   }
 
   private File computeCommitFile()
