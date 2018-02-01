@@ -52,6 +52,7 @@ import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.metrics.QueryCountStatsProvider;
 import io.druid.server.router.AvaticaConnectionBalancer;
 import io.druid.server.router.CoordinatorRuleManager;
+import io.druid.server.router.ManagementProxyConfig;
 import io.druid.server.router.QueryHostFinder;
 import io.druid.server.router.Router;
 import io.druid.server.router.TieredBrokerConfig;
@@ -85,6 +86,7 @@ public class CliRouter extends ServerRunnable
         new QueryableModule(),
         new QueryRunnerFactoryModule(),
         new JettyHttpClientModule("druid.router.http", Router.class),
+        JettyHttpClientModule.global(),
         new Module()
         {
           @Override
@@ -96,6 +98,7 @@ public class CliRouter extends ServerRunnable
 
             JsonConfigProvider.bind(binder, "druid.router", TieredBrokerConfig.class);
             JsonConfigProvider.bind(binder, "druid.router.avatica.balancer", AvaticaConnectionBalancer.class);
+            JsonConfigProvider.bind(binder, "druid.router.managementProxy", ManagementProxyConfig.class);
 
             binder.bind(CoordinatorRuleManager.class);
             LifecycleModule.register(binder, CoordinatorRuleManager.class);
