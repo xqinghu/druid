@@ -195,7 +195,7 @@ public class CoordinatorPollingBasicAuthenticatorCacheManager implements BasicAu
       );
     }
     catch (Exception e) {
-      LOG.makeAlert(e, "Encountered exception while fetching user map for authenticator [%s]", prefix);
+      LOG.makeAlert(e, "Encountered exception while fetching user map for authenticator [%s]", prefix).emit();
       if (isInit) {
         if (commonCacheConfig.getCacheDirectory() != null) {
           try {
@@ -204,7 +204,8 @@ public class CoordinatorPollingBasicAuthenticatorCacheManager implements BasicAu
           }
           catch (Exception e2) {
             e2.addSuppressed(e);
-            LOG.makeAlert(e2, "Encountered exception while loading user map snapshot for authenticator [%s]", prefix);
+            LOG.makeAlert(e2, "Encountered exception while loading user map snapshot for authenticator [%s]", prefix)
+               .emit();
           }
         }
       }

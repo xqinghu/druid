@@ -228,7 +228,7 @@ public class CoordinatorPollingBasicAuthorizerCacheManager implements BasicAutho
       );
     }
     catch (Exception e) {
-      LOG.makeAlert(e, "Encountered exception while fetching user and role map for authorizer [%s]", prefix);
+      LOG.makeAlert(e, "Encountered exception while fetching user and role map for authorizer [%s]", prefix).emit();
       if (isInit) {
         if (commonCacheConfig.getCacheDirectory() != null) {
           try {
@@ -237,7 +237,8 @@ public class CoordinatorPollingBasicAuthorizerCacheManager implements BasicAutho
           }
           catch (Exception e2) {
             e2.addSuppressed(e);
-            LOG.makeAlert(e2, "Encountered exception while loading user-role map snapshot for authorizer [%s]", prefix);
+            LOG.makeAlert(e2, "Encountered exception while loading user-role map snapshot for authorizer [%s]", prefix)
+               .emit();
           }
         }
       }
