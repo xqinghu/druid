@@ -99,10 +99,14 @@ public class AsyncManagementForwardingServlet extends AsyncProxyServlet
       currentLeader = overlordLeaderSelector.getCurrentLeader();
     } else if (requestURI.startsWith(ARBITRARY_COORDINATOR_BASE_PATH)) {
       currentLeader = coordLeaderSelector.getCurrentLeader();
-      request.setAttribute(MODIFIED_PATH_ATTRIBUTE, requestURI.substring(ARBITRARY_COORDINATOR_BASE_PATH.length()));
+      request.setAttribute(
+          MODIFIED_PATH_ATTRIBUTE, request.getRequestURI().substring(ARBITRARY_COORDINATOR_BASE_PATH.length())
+      );
     } else if (requestURI.startsWith(ARBITRARY_OVERLORD_BASE_PATH)) {
       currentLeader = overlordLeaderSelector.getCurrentLeader();
-      request.setAttribute(MODIFIED_PATH_ATTRIBUTE, requestURI.substring(ARBITRARY_OVERLORD_BASE_PATH.length()));
+      request.setAttribute(
+          MODIFIED_PATH_ATTRIBUTE, request.getRequestURI().substring(ARBITRARY_OVERLORD_BASE_PATH.length())
+      );
     } else {
       handleBadRequest(response, "Unsupported proxy destination");
       return;
