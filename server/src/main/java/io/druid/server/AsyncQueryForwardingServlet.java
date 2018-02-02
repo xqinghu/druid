@@ -44,7 +44,6 @@ import io.druid.server.metrics.QueryCountStatsProvider;
 import io.druid.server.router.QueryHostFinder;
 import io.druid.server.router.Router;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.Escalator;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
@@ -113,7 +112,6 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
   private final GenericQueryMetricsFactory queryMetricsFactory;
-  private final Escalator escalator;
 
   private HttpClient broadcastClient;
 
@@ -127,8 +125,7 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
       @Router DruidHttpClientConfig httpClientConfig,
       ServiceEmitter emitter,
       RequestLogger requestLogger,
-      GenericQueryMetricsFactory queryMetricsFactory,
-      Escalator escalator
+      GenericQueryMetricsFactory queryMetricsFactory
   )
   {
     this.warehouse = warehouse;
@@ -140,7 +137,6 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
     this.emitter = emitter;
     this.requestLogger = requestLogger;
     this.queryMetricsFactory = queryMetricsFactory;
-    this.escalator = escalator;
   }
 
   @Override
@@ -200,26 +196,28 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
       request.setAttribute(AVATICA_QUERY_ATTRIBUTE, requestBytes);
     } else if (isQueryEndpoint && HttpMethod.DELETE.is(request.getMethod())) {
       // query cancellation request
-      for (final Server server: hostFinder.getAllServers()) {
+      for (final Server server : hostFinder.getAllServers()) {
         // send query cancellation to all brokers this query may have gone to
         // to keep the code simple, the proxy servlet will also send a request to one of the default brokers
         if (!server.getHost().equals(defaultServer.getHost())) {
           // issue async requests
-          broadcastClient
+          Response.CompleteListener completeListener = result -> {
+            if (result.isFailed()) {
+              log.warn(
+                  result.getFailure(),
+                  "Failed to forward cancellation request to [%s]",
+                  server.getHost()
+              );
+            }
+          };
+
+          Request broadcastReq = broadcastClient
               .newRequest(rewriteURI(request, server.getScheme(), server.getHost()))
               .method(HttpMethod.DELETE)
-              .timeout(CANCELLATION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
-              .send(
-                  result -> {
-                    if (result.isFailed()) {
-                      log.warn(
-                          result.getFailure(),
-                          "Failed to forward cancellation request to [%s]",
-                          server.getHost()
-                      );
-                    }
-                  }
-              );
+              .timeout(CANCELLATION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+
+          copyRequestHeaders(request, broadcastReq);
+          broadcastReq.send(completeListener);
         }
         interruptedQueryCount.incrementAndGet();
       }
@@ -321,7 +319,11 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
   @Override
   protected String rewriteTarget(HttpServletRequest request)
   {
-    return rewriteURI(request, (String) request.getAttribute(SCHEME_ATTRIBUTE), (String) request.getAttribute(HOST_ATTRIBUTE)).toString();
+    return rewriteURI(
+        request,
+        (String) request.getAttribute(SCHEME_ATTRIBUTE),
+        (String) request.getAttribute(HOST_ATTRIBUTE)
+    ).toString();
   }
 
   protected URI rewriteURI(HttpServletRequest request, String scheme, String host)
@@ -349,7 +351,7 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
   @Override
   protected HttpClient newHttpClient()
   {
-    return escalator.createEscalatedJettyClient(httpClientProvider.get());
+    return httpClientProvider.get();
   }
 
   @Override

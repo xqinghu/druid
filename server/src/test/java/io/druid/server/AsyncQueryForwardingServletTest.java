@@ -252,8 +252,7 @@ public class AsyncQueryForwardingServletTest extends BaseJettyTest
                   // noop
                 }
               },
-              new DefaultGenericQueryMetricsFactory(jsonMapper),
-              new NoopEscalator()
+              new DefaultGenericQueryMetricsFactory(jsonMapper)
           )
           {
             @Override
