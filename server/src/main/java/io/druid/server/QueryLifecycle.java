@@ -19,6 +19,7 @@
 
 package io.druid.server;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.metamx.emitter.service.ServiceEmitter;
@@ -82,7 +83,7 @@ public class QueryLifecycle
   private State state = State.NEW;
   private AuthenticationResult authenticationResult;
   private QueryToolChest toolChest;
-  private QueryPlus queryPlus;
+  private Query baseQuery;
 
   public QueryLifecycle(
       final QueryToolChestWarehouse warehouse,
@@ -171,12 +172,7 @@ public class QueryLifecycle
       queryId = UUID.randomUUID().toString();
     }
 
-    this.queryPlus = QueryPlus.wrap(
-        (Query) DirectDruidClient.withDefaultTimeoutAndMaxScatterGatherBytes(
-            baseQuery.withId(queryId),
-            serverConfig
-        )
-    );
+    this.baseQuery = baseQuery.withId(queryId);
     this.toolChest = warehouse.getToolChest(baseQuery);
   }
 
@@ -195,7 +191,7 @@ public class QueryLifecycle
         AuthorizationUtils.authorizeAllResourceActions(
             authenticationResult,
             Iterables.transform(
-                queryPlus.getQuery().getDataSource().getNames(),
+                baseQuery.getDataSource().getNames(),
                 AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
             ),
             authorizerMapper
@@ -219,7 +215,7 @@ public class QueryLifecycle
         AuthorizationUtils.authorizeAllResourceActions(
             req,
             Iterables.transform(
-                queryPlus.getQuery().getDataSource().getNames(),
+                baseQuery.getDataSource().getNames(),
                 AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
             ),
             authorizerMapper
@@ -229,6 +225,9 @@ public class QueryLifecycle
 
   private Access doAuthorize(final AuthenticationResult authenticationResult, final Access authorizationResult)
   {
+    Preconditions.checkNotNull(authenticationResult, "authenticationResult");
+    Preconditions.checkNotNull(authorizationResult, "authorizationResult");
+
     if (!authorizationResult.isAllowed()) {
       // Not authorized; go straight to Jail, do not pass Go.
       transition(State.AUTHORIZING, State.UNAUTHORIZED);
@@ -237,12 +236,6 @@ public class QueryLifecycle
     }
 
     this.authenticationResult = authenticationResult;
-
-    final QueryMetrics queryMetrics = queryPlus.getQueryMetrics();
-
-    if (queryMetrics != null) {
-      queryMetrics.identity(authenticationResult.getIdentity());
-    }
 
     return authorizationResult;
   }
@@ -259,11 +252,14 @@ public class QueryLifecycle
     transition(State.AUTHORIZED, State.EXECUTING);
 
     final Map<String, Object> responseContext = DirectDruidClient.makeResponseContextForQuery(
-        queryPlus.getQuery(),
+        baseQuery,
         System.currentTimeMillis()
     );
 
-    final Sequence res = queryPlus.run(texasRanger, responseContext);
+    final Sequence res = QueryPlus
+        .wrap((Query) DirectDruidClient.withDefaultTimeoutAndMaxScatterGatherBytes(baseQuery, serverConfig))
+        .withIdentity(authenticationResult.getIdentity())
+        .run(texasRanger, responseContext);
 
     return new QueryResponse(res == null ? Sequences.empty() : res, responseContext);
   }
@@ -282,18 +278,17 @@ public class QueryLifecycle
       final long bytesWritten
   )
   {
-    if (queryPlus == null) {
+    if (baseQuery == null) {
       // Never initialized, don't log or emit anything.
       return;
     }
 
     if (state == State.DONE) {
-      log.warn("Tried to emit logs and metrics twice for query[%s]!", queryPlus.getQuery().getId());
+      log.warn("Tried to emit logs and metrics twice for query[%s]!", baseQuery.getId());
     }
 
     state = State.DONE;
 
-    final Query query = queryPlus != null ? queryPlus.getQuery() : null;
     final boolean success = e == null;
 
     try {
@@ -301,7 +296,7 @@ public class QueryLifecycle
       QueryMetrics queryMetrics = DruidMetrics.makeRequestMetrics(
           queryMetricsFactory,
           toolChest,
-          queryPlus.getQuery(),
+          baseQuery,
           Strings.nullToEmpty(remoteAddress)
       );
       queryMetrics.success(success);
@@ -311,21 +306,27 @@ public class QueryLifecycle
         queryMetrics.reportQueryBytes(bytesWritten);
       }
 
+      if (authenticationResult != null) {
+        queryMetrics.identity(authenticationResult.getIdentity());
+      }
+
       queryMetrics.emit(emitter);
 
       final Map<String, Object> statsMap = new LinkedHashMap<>();
       statsMap.put("query/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs));
       statsMap.put("query/bytes", bytesWritten);
       statsMap.put("success", success);
+
       if (authenticationResult != null) {
         statsMap.put("identity", authenticationResult.getIdentity());
       }
+
       if (e != null) {
         statsMap.put("exception", e.toString());
 
         if (e instanceof QueryInterruptedException) {
           // Mimic behavior from QueryResource, where this code was originally taken from.
-          log.warn(e, "Exception while processing queryId [%s]", queryPlus.getQuery().getId());
+          log.warn(e, "Exception while processing queryId [%s]", baseQuery.getId());
           statsMap.put("interrupted", true);
           statsMap.put("reason", e.toString());
         }
@@ -335,19 +336,19 @@ public class QueryLifecycle
           new RequestLogLine(
               DateTimes.utc(startMs),
               Strings.nullToEmpty(remoteAddress),
-              queryPlus.getQuery(),
+              baseQuery,
               new QueryStats(statsMap)
           )
       );
     }
     catch (Exception ex) {
-      log.error(ex, "Unable to log query [%s]!", query);
+      log.error(ex, "Unable to log query [%s]!", baseQuery);
     }
   }
 
   public Query getQuery()
   {
-    return queryPlus.getQuery();
+    return baseQuery;
   }
 
   private void transition(final State from, final State to)
