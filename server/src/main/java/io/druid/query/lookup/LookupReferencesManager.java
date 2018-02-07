@@ -335,7 +335,7 @@ public class LookupReferencesManager
   private void takeSnapshot(Map<String, LookupExtractorFactoryContainer> lookupMap)
   {
     if (lookupSnapshotTaker != null) {
-      lookupSnapshotTaker.takeSnapshot(getLookupBeanList(lookupMap));
+      lookupSnapshotTaker.takeSnapshot(lookupListeningAnnouncerConfig.getLookupTier(), getLookupBeanList(lookupMap));
     }
   }
 
@@ -358,8 +358,7 @@ public class LookupReferencesManager
   {
     List<LookupBean> lookupBeanList;
     if (lookupConfig.getEnableLookupSyncOnStartup()) {
-      String tier = lookupListeningAnnouncerConfig.getLookupTier();
-      lookupBeanList = getLookupListFromCoordinator(tier);
+      lookupBeanList = getLookupListFromCoordinator(lookupListeningAnnouncerConfig.getLookupTier());
       if (lookupBeanList == null) {
         LOG.info("Coordinator is unavailable. Loading saved snapshot instead");
         lookupBeanList = getLookupListFromSnapshot();
@@ -451,7 +450,7 @@ public class LookupReferencesManager
   private List<LookupBean> getLookupListFromSnapshot()
   {
     if (lookupSnapshotTaker != null) {
-      return lookupSnapshotTaker.pullExistingSnapshot();
+      return lookupSnapshotTaker.pullExistingSnapshot(lookupListeningAnnouncerConfig.getLookupTier());
     }
     return null;
   }
