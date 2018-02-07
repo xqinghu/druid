@@ -239,6 +239,12 @@ public final class DimensionHandlerUtils
 
   public static Long convertObjectToLong(@Nullable Object valObj)
   {
+    return convertObjectToLong(valObj, false);
+  }
+
+  @Nullable
+  public static Long convertObjectToLong(@Nullable Object valObj, boolean reportParseExceptions)
+  {
     if (valObj == null) {
       return ZERO_LONG;
     }
@@ -248,13 +254,23 @@ public final class DimensionHandlerUtils
     } else if (valObj instanceof Number) {
       return ((Number) valObj).longValue();
     } else if (valObj instanceof String) {
-      return DimensionHandlerUtils.getExactLongFromDecimalString((String) valObj);
+      Long ret = DimensionHandlerUtils.getExactLongFromDecimalString((String) valObj);
+      if (reportParseExceptions && ret == null) {
+        throw new ParseException("could not convert value [%s] to long", valObj);
+      }
+      return ret;
     } else {
       throw new ParseException("Unknown type[%s]", valObj.getClass());
     }
   }
 
   public static Float convertObjectToFloat(@Nullable Object valObj)
+  {
+    return convertObjectToFloat(valObj, false);
+  }
+
+  @Nullable
+  public static Float convertObjectToFloat(@Nullable Object valObj, boolean reportParseExceptions)
   {
     if (valObj == null) {
       return ZERO_FLOAT;
@@ -265,13 +281,23 @@ public final class DimensionHandlerUtils
     } else if (valObj instanceof Number) {
       return ((Number) valObj).floatValue();
     } else if (valObj instanceof String) {
-      return Floats.tryParse((String) valObj);
+      Float ret = Floats.tryParse((String) valObj);
+      if (reportParseExceptions && ret == null) {
+        throw new ParseException("could not convert value [%s] to float", valObj);
+      }
+      return ret;
     } else {
       throw new ParseException("Unknown type[%s]", valObj.getClass());
     }
   }
 
   public static Double convertObjectToDouble(@Nullable Object valObj)
+  {
+    return convertObjectToDouble(valObj, false);
+  }
+
+  @Nullable
+  public static Double convertObjectToDouble(@Nullable Object valObj, boolean reportParseExceptions)
   {
     if (valObj == null) {
       return ZERO_DOUBLE;
@@ -282,8 +308,11 @@ public final class DimensionHandlerUtils
     } else if (valObj instanceof Number) {
       return ((Number) valObj).doubleValue();
     } else if (valObj instanceof String) {
-      Double doubleValue = Doubles.tryParse((String) valObj);
-      return doubleValue == null ? ZERO_DOUBLE : doubleValue;
+      Double ret = Doubles.tryParse((String) valObj);
+      if (reportParseExceptions && ret == null) {
+        throw new ParseException("could not convert value [%s] to double", valObj);
+      }
+      return ret;
     } else {
       throw new ParseException("Unknown type[%s]", valObj.getClass());
     }

@@ -198,8 +198,7 @@ public class StringDimensionIndexer implements DimensionIndexer<Integer, int[], 
     return ValueType.STRING;
   }
 
-  @Override
-  public int[] processRowValsToUnsortedEncodedKeyComponent(Object dimValues)
+  public int[] processRowValsToUnsortedEncodedKeyComponent(Object dimValues, boolean reportParseExceptions)
   {
     final int[] encodedDimensionValues;
     final int oldDictSize = dimLookup.size();
