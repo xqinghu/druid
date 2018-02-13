@@ -61,6 +61,39 @@
             <artifactId>airline</artifactId>
         </dependency>
 
+        <!-- Shaded extensions -->
+        <dependency>
+            <groupId>io.druid.extensions</groupId>
+            <artifactId>druid-avro-extensions</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.druid.extensions</groupId>
+            <artifactId>druid-datasketches</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.druid.extensions</groupId>
+            <artifactId>druid-hdfs-storage</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.druid.extensions</groupId>
+            <artifactId>druid-s3-extensions</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.druid.extensions</groupId>
+            <artifactId>mysql-metadata-storage</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+
+
         <!-- Test Dependencies -->
         <dependency>
             <groupId>junit</groupId>
@@ -115,6 +148,28 @@
                                     </excludes>
                                 </filter>
                             </filters>
+                            <relocations>
+                                <relocation>
+                                    <pattern>com.fasterxml.jackson</pattern>
+                                    <shadedPattern>io.druid.shade.com.fasterxml.jackson</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.google</pattern>
+                                    <shadedPattern>io.druid.shade.com.google</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.sun.jersey</pattern>
+                                    <shadedPattern>io.druid.shade.com.sun.jersey</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <artifactSet>
+                                <includes>
+                                    <include>*:*</include>
+                                </includes>
+                                <excludes>
+                                    <exclude>org.apache.hadoop:*</exclude>
+                                </excludes>
+                            </artifactSet>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
                             </transformers>
