@@ -771,8 +771,12 @@ public class AppenderatorImpl implements Appenderator
 
   private void shutdownExecutors()
   {
-    persistExecutor.shutdownNow();
-    pushExecutor.shutdownNow();
+    if (persistExecutor != null) {
+      persistExecutor.shutdownNow();
+    }
+    if (pushExecutor != null) {
+      pushExecutor.shutdownNow();
+    }
   }
 
   private void resetNextFlush()
