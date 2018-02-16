@@ -213,9 +213,21 @@ public class GroupByQuery extends BaseQuery<Row>
     // However, it's not necessary to build the real limitFn from it at this stage.
     Function<Sequence<Row>, Sequence<Row>> postProcFn;
     if (getContextBoolean(GroupByStrategyV2.CTX_KEY_OUTERMOST, true)) {
-      postProcFn = this.limitSpec.build(this.dimensions, this.aggregatorSpecs, this.postAggregatorSpecs);
+      postProcFn = this.limitSpec.build(
+          this.dimensions,
+          this.aggregatorSpecs,
+          this.postAggregatorSpecs,
+          this.getGranularity(),
+          getContextSortByDimsFirst()
+      );
     } else {
-      postProcFn = NoopLimitSpec.INSTANCE.build(this.dimensions, this.aggregatorSpecs, this.postAggregatorSpecs);
+      postProcFn = NoopLimitSpec.INSTANCE.build(
+          this.dimensions,
+          this.aggregatorSpecs,
+          this.postAggregatorSpecs,
+          this.getGranularity(),
+          getContextSortByDimsFirst()
+      );
     }
 
     if (havingSpec != null) {
