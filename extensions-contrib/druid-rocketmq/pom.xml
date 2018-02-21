@@ -22,7 +22,7 @@
   <parent>
     <artifactId>druid</artifactId>
     <groupId>io.druid</groupId>
-    <version>0.11.0</version>
+    <version>0.11.0-rshade1</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
@@ -46,4 +46,8 @@
       <scope>provided</scope>
     </dependency>
   </dependencies>
+
+  <scm>
+    <tag>druid-0.11.0-rshade1</tag>
+  </scm>
 </project>

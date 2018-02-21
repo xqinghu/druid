@@ -31,7 +31,7 @@
   <parent>
     <groupId>io.druid</groupId>
     <artifactId>druid</artifactId>
-    <version>0.11.0</version>
+    <version>0.11.0-rshade1</version>
   </parent>
 
   <dependencies>
@@ -62,4 +62,8 @@
     </dependency>
   </dependencies>
 
+
+  <scm>
+    <tag>druid-0.11.0-rshade1</tag>
+  </scm>
 </project>

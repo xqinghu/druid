@@ -24,7 +24,7 @@
     <parent>
         <groupId>io.druid</groupId>
         <artifactId>druid</artifactId>
-        <version>0.11.0</version>
+        <version>0.11.0-rshade1</version>
     </parent>
 
     <artifactId>java-util</artifactId>
@@ -140,4 +140,8 @@
         </plugins>
     </build>
 
+
+  <scm>
+    <tag>druid-0.11.0-rshade1</tag>
+  </scm>
 </project>
