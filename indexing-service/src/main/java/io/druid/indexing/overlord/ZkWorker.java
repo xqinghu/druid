@@ -21,7 +21,6 @@ package io.druid.indexing.overlord;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -84,12 +83,6 @@ public class ZkWorker implements Closeable
   public void addListener(PathChildrenCacheListener listener)
   {
     statusCache.getListenable().addListener(listener);
-  }
-
-  @VisibleForTesting
-  void forEachListener(Function<PathChildrenCacheListener, Void> function)
-  {
-    statusCache.getListenable().forEach(function);
   }
 
   @JsonProperty("worker")
