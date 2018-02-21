@@ -161,6 +161,10 @@
                                     <pattern>com.sun.jersey</pattern>
                                     <shadedPattern>io.druid.shade.com.sun.jersey</shadedPattern>
                                 </relocation>
+                                <relocation>
+                                    <pattern>org.apache.curator</pattern>
+                                    <shadedPattern>io.druid.shade.org.apache.curator</shadedPattern>
+                                </relocation>
                             </relocations>
                             <artifactSet>
                                 <includes>
