@@ -42,7 +42,11 @@ import io.druid.indexing.worker.Worker;
 import io.druid.java.util.common.DateTimes;
 import io.druid.java.util.common.StringUtils;
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.recipes.cache.ChildData;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent.Type;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.data.Stat;
 import org.easymock.EasyMock;
 import org.joda.time.Period;
 import org.junit.After;
@@ -311,6 +315,19 @@ public class RemoteTaskRunnerTest
     Assert.assertTrue(remoteTaskRunner.getRunningTasks().iterator().next().getTaskId().equals("task"));
 
     cf.delete().forPath(joiner.join(statusPath, task.getId()));
+
+    // CHILD_REMOVED events can be missed sometimes. Sending an additional CHILD_REMOVED event just in case.
+    remoteTaskRunner.getZkWorkers("worker").forEachListener(
+        listener -> {
+          try {
+            listener.childEvent(cf, new PathChildrenCacheEvent(Type.CHILD_REMOVED, new ChildData(rtrTestUtils.getTaskStatusPath("worker", task.getId()), new Stat(), null)));
+            return null;
+          }
+          catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        }
+    );
 
     TaskStatus status = future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 

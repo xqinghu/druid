@@ -1365,4 +1365,10 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
   {
     return workersWithUnacknowledgedTask;
   }
+
+  @VisibleForTesting
+  ZkWorker getZkWorkers(String workerId)
+  {
+    return zkWorkers.get(workerId);
+  }
 }
