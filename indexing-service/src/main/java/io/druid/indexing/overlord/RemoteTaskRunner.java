@@ -478,9 +478,10 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
     return null;
   }
 
-  public boolean isWorkerRunningTask(ZkWorker worker, String taskId)
+  public boolean isWorkerRunningTask(Worker worker, String taskId)
   {
-    return Preconditions.checkNotNull(worker, "worker").isRunningTask(taskId);
+    ZkWorker zkWorker = zkWorkers.get(worker.getHost());
+    return (zkWorker != null && zkWorker.isRunningTask(taskId));
   }
 
   /**
@@ -865,7 +866,7 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
       // Syncing state with Zookeeper - don't assign new tasks until the task we just assigned is actually running
       // on a worker - this avoids overflowing a worker with tasks
       Stopwatch timeoutStopwatch = Stopwatch.createStarted();
-      while (!isWorkerRunningTask(theZkWorker, task.getId())) {
+      while (!isWorkerRunningTask(theZkWorker.getWorker(), task.getId())) {
         final long waitMs = config.getTaskAssignmentTimeout().toStandardDuration().getMillis();
         statusLock.wait(waitMs);
         long elapsed = timeoutStopwatch.elapsed(TimeUnit.MILLISECONDS);
