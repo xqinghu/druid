@@ -31,7 +31,6 @@ import io.druid.java.util.common.DateTimes;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.indexing.TuningConfig;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 
@@ -68,8 +67,6 @@ public class HadoopTuningConfig implements TuningConfig
         DEFAULT_NUM_BACKGROUND_PERSIST_THREADS,
         false,
         false,
-        null,
-        null,
         null
     );
   }
@@ -91,8 +88,6 @@ public class HadoopTuningConfig implements TuningConfig
   private final boolean forceExtendableShardSpecs;
   private final boolean useExplicitVersion;
   private final List<String> allowedHadoopPrefix;
-  private final boolean logParseExceptions;
-  private final int maxParseExceptions;
 
   @JsonCreator
   public HadoopTuningConfig(
@@ -105,7 +100,7 @@ public class HadoopTuningConfig implements TuningConfig
       final @JsonProperty("leaveIntermediate") boolean leaveIntermediate,
       final @JsonProperty("cleanupOnFailure") Boolean cleanupOnFailure,
       final @JsonProperty("overwriteFiles") boolean overwriteFiles,
-      final @Deprecated @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows,
+      final @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows,
       final @JsonProperty("jobProperties") Map<String, String> jobProperties,
       final @JsonProperty("combineText") boolean combineText,
       final @JsonProperty("useCombiner") Boolean useCombiner,
@@ -116,9 +111,7 @@ public class HadoopTuningConfig implements TuningConfig
       final @JsonProperty("numBackgroundPersistThreads") Integer numBackgroundPersistThreads,
       final @JsonProperty("forceExtendableShardSpecs") boolean forceExtendableShardSpecs,
       final @JsonProperty("useExplicitVersion") boolean useExplicitVersion,
-      final @JsonProperty("allowedHadoopPrefix") List<String> allowedHadoopPrefix,
-      final @JsonProperty("logParseExceptions") @Nullable Boolean logParseExceptions,
-      final @JsonProperty("maxParseExceptions") @Nullable Integer maxParseExceptions
+      final @JsonProperty("allowedHadoopPrefix") List<String> allowedHadoopPrefix
   )
   {
     this.workingPath = workingPath;
@@ -145,13 +138,6 @@ public class HadoopTuningConfig implements TuningConfig
     Preconditions.checkArgument(this.numBackgroundPersistThreads >= 0, "Not support persistBackgroundCount < 0");
     this.useExplicitVersion = useExplicitVersion;
     this.allowedHadoopPrefix = allowedHadoopPrefix == null ? ImmutableList.of() : allowedHadoopPrefix;
-
-    if (!this.ignoreInvalidRows) {
-      this.maxParseExceptions = 0;
-    } else {
-      this.maxParseExceptions = maxParseExceptions == null ? TuningConfig.DEFAULT_MAX_PARSE_EXCEPTIONS : maxParseExceptions;
-    }
-    this.logParseExceptions = logParseExceptions == null ? TuningConfig.DEFAULT_LOG_PARSE_EXCEPTIONS : logParseExceptions;
   }
 
   @JsonProperty
@@ -267,18 +253,6 @@ public class HadoopTuningConfig implements TuningConfig
     return allowedHadoopPrefix;
   }
 
-  @JsonProperty
-  public boolean isLogParseExceptions()
-  {
-    return logParseExceptions;
-  }
-
-  @JsonProperty
-  public int getMaxParseExceptions()
-  {
-    return maxParseExceptions;
-  }
-
   public HadoopTuningConfig withWorkingPath(String path)
   {
     return new HadoopTuningConfig(
@@ -300,9 +274,7 @@ public class HadoopTuningConfig implements TuningConfig
         numBackgroundPersistThreads,
         forceExtendableShardSpecs,
         useExplicitVersion,
-        allowedHadoopPrefix,
-        logParseExceptions,
-        maxParseExceptions
+        allowedHadoopPrefix
     );
   }
 
@@ -327,9 +299,7 @@ public class HadoopTuningConfig implements TuningConfig
         numBackgroundPersistThreads,
         forceExtendableShardSpecs,
         useExplicitVersion,
-        allowedHadoopPrefix,
-        logParseExceptions,
-        maxParseExceptions
+        allowedHadoopPrefix
     );
   }
 
@@ -354,9 +324,7 @@ public class HadoopTuningConfig implements TuningConfig
         numBackgroundPersistThreads,
         forceExtendableShardSpecs,
         useExplicitVersion,
-        allowedHadoopPrefix,
-        logParseExceptions,
-        maxParseExceptions
+        allowedHadoopPrefix
     );
   }
 }

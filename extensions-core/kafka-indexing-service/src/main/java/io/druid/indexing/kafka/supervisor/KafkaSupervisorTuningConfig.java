@@ -57,10 +57,7 @@ public class KafkaSupervisorTuningConfig extends KafkaTuningConfig
       @JsonProperty("httpTimeout") Period httpTimeout,
       @JsonProperty("shutdownTimeout") Period shutdownTimeout,
       @JsonProperty("offsetFetchPeriod") Period offsetFetchPeriod,
-      @JsonProperty("intermediateHandoffPeriod") Period intermediateHandoffPeriod,
-      @JsonProperty("logParseExceptions") @Nullable Boolean logParseExceptions,
-      @JsonProperty("maxParseExceptions") @Nullable Integer maxParseExceptions,
-      @JsonProperty("maxSavedParseExceptions") @Nullable Integer maxSavedParseExceptions
+      @JsonProperty("intermediateHandoffPeriod") Period intermediateHandoffPeriod
   )
   {
     super(
@@ -75,10 +72,7 @@ public class KafkaSupervisorTuningConfig extends KafkaTuningConfig
         handoffConditionTimeout,
         resetOffsetAutomatically,
         segmentWriteOutMediumFactory,
-        intermediateHandoffPeriod,
-        logParseExceptions,
-        maxParseExceptions,
-        maxSavedParseExceptions
+        intermediateHandoffPeriod
     );
 
     this.workerThreads = workerThreads;
@@ -146,9 +140,6 @@ public class KafkaSupervisorTuningConfig extends KafkaTuningConfig
            ", shutdownTimeout=" + shutdownTimeout +
            ", offsetFetchPeriod=" + offsetFetchPeriod +
            ", intermediateHandoffPeriod=" + getIntermediateHandoffPeriod() +
-           ", logParseExceptions=" + isLogParseExceptions() +
-           ", maxParseExceptions=" + getMaxParseExceptions() +
-           ", maxSavedParseExceptions=" + getMaxSavedParseExceptions() +
            '}';
   }
 

@@ -55,7 +55,6 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeComparator;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -70,7 +69,6 @@ public class DetermineHashedPartitionsJob implements Jobby
 {
   private static final Logger log = new Logger(DetermineHashedPartitionsJob.class);
   private final HadoopDruidIndexerConfig config;
-  private String failureCause;
 
   public DetermineHashedPartitionsJob(
       HadoopDruidIndexerConfig config
@@ -123,7 +121,6 @@ public class DetermineHashedPartitionsJob implements Jobby
 
       if (!groupByJob.waitForCompletion(true)) {
         log.error("Job failed: %s", groupByJob.getJobID());
-        failureCause = Utils.getFailureMessage(groupByJob, config.JSON_MAPPER);
         return false;
       }
 
@@ -200,7 +197,6 @@ public class DetermineHashedPartitionsJob implements Jobby
           log.info("Path[%s] didn't exist!?", partitionInfoPath);
         }
       }
-
       config.setShardSpecs(shardSpecs);
       log.info(
           "DetermineHashedPartitionsJob took %d millis",
@@ -212,13 +208,6 @@ public class DetermineHashedPartitionsJob implements Jobby
     catch (Exception e) {
       throw Throwables.propagate(e);
     }
-  }
-
-  @Nullable
-  @Override
-  public String getErrorMessage()
-  {
-    return failureCause;
   }
 
   public static class DetermineCardinalityMapper extends HadoopDruidIndexerMapper<LongWritable, BytesWritable>
@@ -280,7 +269,6 @@ public class DetermineHashedPartitionsJob implements Jobby
         }
         interval = maybeInterval.get();
       }
-
       hyperLogLogs
           .get(interval)
           .add(hashFunction.hashBytes(HadoopDruidIndexerConfig.JSON_MAPPER.writeValueAsBytes(groupKey)).asBytes());

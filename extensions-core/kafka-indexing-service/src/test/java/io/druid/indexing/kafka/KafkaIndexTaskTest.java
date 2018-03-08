@@ -33,16 +33,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.data.input.impl.FloatDimensionSchema;
-import io.druid.data.input.impl.LongDimensionSchema;
-import io.druid.data.input.impl.StringDimensionSchema;
-import io.druid.indexer.TaskMetricsUtils;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.java.util.emitter.core.NoopEmitter;
 import io.druid.java.util.emitter.service.ServiceEmitter;
@@ -107,7 +102,6 @@ import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
-import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -158,7 +152,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -190,9 +183,6 @@ public class KafkaIndexTaskTest
 
   private long handoffConditionTimeout = 0;
   private boolean reportParseExceptions = false;
-  private boolean logParseExceptions = true;
-  private Integer maxParseExceptions = null;
-  private Integer maxSavedParseExceptions = null;
   private boolean resetOffsetAutomatically = false;
   private boolean doHandoff = true;
   private Integer maxRowsPerSegment = null;
@@ -228,13 +218,7 @@ public class KafkaIndexTaskTest
               new JSONParseSpec(
                   new TimestampSpec("timestamp", "iso", null),
                   new DimensionsSpec(
-                      Arrays.asList(
-                          new StringDimensionSchema("dim1"),
-                          new StringDimensionSchema("dim1t"),
-                          new StringDimensionSchema("dim2"),
-                          new LongDimensionSchema("dimLong"),
-                          new FloatDimensionSchema("dimFloat")
-                      ),
+                      DimensionsSpec.getDefaultSchemas(ImmutableList.<String>of("dim1", "dim1t", "dim2")),
                       null,
                       null
                   ),
@@ -245,10 +229,7 @@ public class KafkaIndexTaskTest
           ),
           Map.class
       ),
-      new AggregatorFactory[]{
-          new DoubleSumAggregatorFactory("met1sum", "met1"),
-          new CountAggregatorFactory("rows")
-      },
+      new AggregatorFactory[]{new CountAggregatorFactory("rows")},
       new UniformGranularitySpec(Granularities.DAY, Granularities.NONE, null),
       null,
       objectMapper
@@ -257,21 +238,17 @@ public class KafkaIndexTaskTest
   private static List<ProducerRecord<byte[], byte[]>> generateRecords(String topic)
   {
     return ImmutableList.of(
-        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2008", "a", "y", "10", "20.0", "1.0")),
-        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2009", "b", "y", "10", "20.0", "1.0")),
-        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2010", "c", "y", "10", "20.0", "1.0")),
-        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2011", "d", "y", "10", "20.0", "1.0")),
-        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2011", "e", "y", "10", "20.0", "1.0")),
-        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("246140482-04-24T15:36:27.903Z", "x", "z", "10", "20.0", "1.0")),
+        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2008", "a", "y", 1.0f)),
+        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2009", "b", "y", 1.0f)),
+        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2010", "c", "y", 1.0f)),
+        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2011", "d", "y", 1.0f)),
+        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2011", "e", "y", 1.0f)),
+        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("246140482-04-24T15:36:27.903Z", "x", "z", 1.0f)),
         new ProducerRecord<byte[], byte[]>(topic, 0, null, StringUtils.toUtf8("unparseable")),
-        new ProducerRecord<byte[], byte[]>(topic, 0, null, StringUtils.toUtf8("unparseable2")),
         new ProducerRecord<byte[], byte[]>(topic, 0, null, null),
-        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2013", "f", "y", "10", "20.0", "1.0")),
-        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2049", "f", "y", "notanumber", "20.0", "1.0")),
-        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2049", "f", "y", "10", "notanumber", "1.0")),
-        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2049", "f", "y", "10", "20.0", "notanumber")),
-        new ProducerRecord<byte[], byte[]>(topic, 1, null, JB("2012", "g", "y", "10", "20.0", "1.0")),
-        new ProducerRecord<byte[], byte[]>(topic, 1, null, JB("2011", "h", "y", "10", "20.0", "1.0"))
+        new ProducerRecord<byte[], byte[]>(topic, 0, null, JB("2013", "f", "y", 1.0f)),
+        new ProducerRecord<byte[], byte[]>(topic, 1, null, JB("2012", "g", "y", 1.0f)),
+        new ProducerRecord<byte[], byte[]>(topic, 1, null, JB("2011", "h", "y", 1.0f))
     );
   }
 
@@ -320,9 +297,6 @@ public class KafkaIndexTaskTest
   {
     handoffConditionTimeout = 0;
     reportParseExceptions = false;
-    logParseExceptions = true;
-    maxParseExceptions = null;
-    maxSavedParseExceptions = null;
     doHandoff = true;
     topic = getTopicName();
     records = generateRecords(topic);
@@ -485,7 +459,7 @@ public class KafkaIndexTaskTest
     // of events fetched across two partitions from Kafka
     final KafkaPartitions checkpoint1 = new KafkaPartitions(topic, ImmutableMap.of(0, 5L, 1, 0L));
     final KafkaPartitions checkpoint2 = new KafkaPartitions(topic, ImmutableMap.of(0, 4L, 1, 2L));
-    final KafkaPartitions endPartitions = new KafkaPartitions(topic, ImmutableMap.of(0, 10L, 1, 2L));
+    final KafkaPartitions endPartitions = new KafkaPartitions(topic, ImmutableMap.of(0, 9L, 1, 2L));
     final KafkaIndexTask task = createTask(
         null,
         new KafkaIOConfig(
@@ -522,8 +496,8 @@ public class KafkaIndexTaskTest
 
     // Check metrics
     Assert.assertEquals(8, task.getFireDepartmentMetrics().processed());
-    Assert.assertEquals(3, task.getFireDepartmentMetrics().unparseable());
-    Assert.assertEquals(1, task.getFireDepartmentMetrics().thrownAway());
+    Assert.assertEquals(1, task.getFireDepartmentMetrics().unparseable());
+    Assert.assertEquals(2, task.getFireDepartmentMetrics().thrownAway());
 
     // Check published metadata
     SegmentDescriptor desc1 = SD(task, "2008/P1D", 0);
@@ -535,7 +509,7 @@ public class KafkaIndexTaskTest
     SegmentDescriptor desc7 = SD(task, "2013/P1D", 0);
     Assert.assertEquals(ImmutableSet.of(desc1, desc2, desc3, desc4, desc5, desc6, desc7), publishedDescriptors());
     Assert.assertEquals(
-        new KafkaDataSourceMetadata(new KafkaPartitions(topic, ImmutableMap.of(0, 10L, 1, 2L))),
+        new KafkaDataSourceMetadata(new KafkaPartitions(topic, ImmutableMap.of(0, 9L, 1, 2L))),
         metadataStorageCoordinator.getDataSourceMetadata(DATA_SCHEMA.getDataSource())
     );
 
@@ -950,10 +924,6 @@ public class KafkaIndexTaskTest
   {
     reportParseExceptions = true;
 
-    // these will be ignored because reportParseExceptions is true
-    maxParseExceptions = 1000;
-    maxSavedParseExceptions = 2;
-
     // Insert data
     try (final KafkaProducer<byte[], byte[]> kafkaProducer = kafkaServer.newProducer()) {
       for (ProducerRecord<byte[], byte[]> record : records) {
@@ -983,143 +953,12 @@ public class KafkaIndexTaskTest
 
     // Check metrics
     Assert.assertEquals(3, task.getFireDepartmentMetrics().processed());
-    Assert.assertEquals(1, task.getFireDepartmentMetrics().unparseable());
+    Assert.assertEquals(0, task.getFireDepartmentMetrics().unparseable());
     Assert.assertEquals(0, task.getFireDepartmentMetrics().thrownAway());
 
     // Check published metadata
     Assert.assertEquals(ImmutableSet.of(), publishedDescriptors());
     Assert.assertNull(metadataStorageCoordinator.getDataSourceMetadata(DATA_SCHEMA.getDataSource()));
-  }
-
-  @Test(timeout = 60_000L)
-  public void testMultipleParseExceptionsSuccess() throws Exception
-  {
-    reportParseExceptions = false;
-    maxParseExceptions = 6;
-    maxSavedParseExceptions = 6;
-
-    // Insert data
-    try (final KafkaProducer<byte[], byte[]> kafkaProducer = kafkaServer.newProducer()) {
-      for (ProducerRecord<byte[], byte[]> record : records) {
-        kafkaProducer.send(record).get();
-      }
-    }
-
-    final KafkaIndexTask task = createTask(
-        null,
-        new KafkaIOConfig(
-            "sequence0",
-            new KafkaPartitions(topic, ImmutableMap.of(0, 2L)),
-            new KafkaPartitions(topic, ImmutableMap.of(0, 13L)),
-            kafkaServer.consumerProperties(),
-            true,
-            false,
-            null,
-            null,
-            false
-        )
-    );
-
-    final ListenableFuture<TaskStatus> future = runTask(task);
-
-    TaskStatus status = future.get();
-
-    // Wait for task to exit
-    Assert.assertEquals(TaskState.SUCCESS, status.getStatusCode());
-    Assert.assertEquals(null, status.getErrorMsg());
-
-    // Check metrics
-    Assert.assertEquals(7, task.getFireDepartmentMetrics().processed());
-    Assert.assertEquals(6, task.getFireDepartmentMetrics().unparseable());
-    Assert.assertEquals(1, task.getFireDepartmentMetrics().thrownAway());
-
-    // Check published metadata
-    SegmentDescriptor desc1 = SD(task, "2010/P1D", 0);
-    SegmentDescriptor desc2 = SD(task, "2011/P1D", 0);
-    SegmentDescriptor desc3 = SD(task, "2013/P1D", 0);
-    SegmentDescriptor desc4 = SD(task, "2049/P1D", 0);
-    Assert.assertEquals(ImmutableSet.of(desc1, desc2, desc3, desc4), publishedDescriptors());
-    Assert.assertEquals(
-        new KafkaDataSourceMetadata(new KafkaPartitions(topic, ImmutableMap.of(0, 13L))),
-        metadataStorageCoordinator.getDataSourceMetadata(DATA_SCHEMA.getDataSource())
-    );
-
-    Map<String, Object> expectedMetrics = Maps.newHashMap();
-    expectedMetrics.put(TaskMetricsUtils.ROWS_PROCESSED, 7L);
-    expectedMetrics.put(TaskMetricsUtils.ROWS_UNPARSEABLE, 6L);
-    expectedMetrics.put(TaskMetricsUtils.ROWS_THROWN_AWAY, 1L);
-    Assert.assertEquals(expectedMetrics, status.getMetrics());
-
-    List<String> expectedUnparseableEvents = Arrays.asList(
-        "Found unparseable columns in row: [MapBasedInputRow{timestamp=2049-01-01T00:00:00.000Z, event={timestamp=2049, dim1=f, dim2=y, dimLong=10, dimFloat=20.0, met1=notanumber}, dimensions=[dim1, dim1t, dim2, dimLong, dimFloat]}], exceptions: [Unable to parse value[notanumber] for field[met1],]",
-        "Found unparseable columns in row: [MapBasedInputRow{timestamp=2049-01-01T00:00:00.000Z, event={timestamp=2049, dim1=f, dim2=y, dimLong=10, dimFloat=notanumber, met1=1.0}, dimensions=[dim1, dim1t, dim2, dimLong, dimFloat]}], exceptions: [could not convert value [notanumber] to float,]",
-        "Found unparseable columns in row: [MapBasedInputRow{timestamp=2049-01-01T00:00:00.000Z, event={timestamp=2049, dim1=f, dim2=y, dimLong=notanumber, dimFloat=20.0, met1=1.0}, dimensions=[dim1, dim1t, dim2, dimLong, dimFloat]}], exceptions: [could not convert value [notanumber] to long,]",
-        "Unable to parse row [unparseable2]",
-        "Unable to parse row [unparseable]",
-        "Encountered row with timestamp that cannot be represented as a long: [MapBasedInputRow{timestamp=246140482-04-24T15:36:27.903Z, event={timestamp=246140482-04-24T15:36:27.903Z, dim1=x, dim2=z, dimLong=10, dimFloat=20.0, met1=1.0}, dimensions=[dim1, dim1t, dim2, dimLong, dimFloat]}]"
-    );
-
-    Assert.assertEquals(expectedUnparseableEvents, status.getContext().get("unparseableEvents"));
-  }
-
-  @Test(timeout = 60_000L)
-  public void testMultipleParseExceptionsFailure() throws Exception
-  {
-    reportParseExceptions = false;
-    maxParseExceptions = 2;
-    maxSavedParseExceptions = 2;
-
-    // Insert data
-    try (final KafkaProducer<byte[], byte[]> kafkaProducer = kafkaServer.newProducer()) {
-      for (ProducerRecord<byte[], byte[]> record : records) {
-        kafkaProducer.send(record).get();
-      }
-    }
-
-    final KafkaIndexTask task = createTask(
-        null,
-        new KafkaIOConfig(
-            "sequence0",
-            new KafkaPartitions(topic, ImmutableMap.of(0, 2L)),
-            new KafkaPartitions(topic, ImmutableMap.of(0, 10L)),
-            kafkaServer.consumerProperties(),
-            true,
-            false,
-            null,
-            null,
-            false
-        )
-    );
-
-    final ListenableFuture<TaskStatus> future = runTask(task);
-
-    TaskStatus status = future.get();
-
-    // Wait for task to exit
-    Assert.assertEquals(TaskState.FAILED, status.getStatusCode());
-    Assert.assertEquals("Unable to parse row [unparseable2]", status.getErrorMsg());
-
-    // Check metrics
-    Assert.assertEquals(3, task.getFireDepartmentMetrics().processed());
-    Assert.assertEquals(3, task.getFireDepartmentMetrics().unparseable());
-    Assert.assertEquals(0, task.getFireDepartmentMetrics().thrownAway());
-
-    // Check published metadata
-    Assert.assertEquals(ImmutableSet.of(), publishedDescriptors());
-    Assert.assertNull(metadataStorageCoordinator.getDataSourceMetadata(DATA_SCHEMA.getDataSource()));
-
-    Map<String, Object> expectedMetrics = Maps.newHashMap();
-    expectedMetrics.put(TaskMetricsUtils.ROWS_PROCESSED, 3L);
-    expectedMetrics.put(TaskMetricsUtils.ROWS_UNPARSEABLE, 3L);
-    expectedMetrics.put(TaskMetricsUtils.ROWS_THROWN_AWAY, 0L);
-    Assert.assertEquals(expectedMetrics, status.getMetrics());
-
-    List<String> expectedUnparseableEvents = Arrays.asList(
-        "Unable to parse row [unparseable2]",
-        "Unable to parse row [unparseable]"
-        );
-
-    Assert.assertEquals(expectedUnparseableEvents, status.getContext().get("unparseableEvents"));
   }
 
   @Test(timeout = 60_000L)
@@ -1212,7 +1051,7 @@ public class KafkaIndexTaskTest
         new KafkaIOConfig(
             "sequence1",
             new KafkaPartitions(topic, ImmutableMap.of(0, 3L)),
-            new KafkaPartitions(topic, ImmutableMap.of(0, 10L)),
+            new KafkaPartitions(topic, ImmutableMap.of(0, 9L)),
             kafkaServer.consumerProperties(),
             true,
             false,
@@ -1242,8 +1081,8 @@ public class KafkaIndexTaskTest
     Assert.assertEquals(0, task1.getFireDepartmentMetrics().unparseable());
     Assert.assertEquals(0, task1.getFireDepartmentMetrics().thrownAway());
     Assert.assertEquals(3, task2.getFireDepartmentMetrics().processed());
-    Assert.assertEquals(3, task2.getFireDepartmentMetrics().unparseable());
-    Assert.assertEquals(1, task2.getFireDepartmentMetrics().thrownAway());
+    Assert.assertEquals(1, task2.getFireDepartmentMetrics().unparseable());
+    Assert.assertEquals(2, task2.getFireDepartmentMetrics().thrownAway());
 
     // Check published segments & metadata, should all be from the first task
     SegmentDescriptor desc1 = SD(task1, "2010/P1D", 0);
@@ -1281,7 +1120,7 @@ public class KafkaIndexTaskTest
         new KafkaIOConfig(
             "sequence1",
             new KafkaPartitions(topic, ImmutableMap.of(0, 3L)),
-            new KafkaPartitions(topic, ImmutableMap.of(0, 10L)),
+            new KafkaPartitions(topic, ImmutableMap.of(0, 9L)),
             kafkaServer.consumerProperties(),
             false,
             false,
@@ -1317,8 +1156,8 @@ public class KafkaIndexTaskTest
     Assert.assertEquals(0, task1.getFireDepartmentMetrics().unparseable());
     Assert.assertEquals(0, task1.getFireDepartmentMetrics().thrownAway());
     Assert.assertEquals(3, task2.getFireDepartmentMetrics().processed());
-    Assert.assertEquals(3, task2.getFireDepartmentMetrics().unparseable());
-    Assert.assertEquals(1, task2.getFireDepartmentMetrics().thrownAway());
+    Assert.assertEquals(1, task2.getFireDepartmentMetrics().unparseable());
+    Assert.assertEquals(2, task2.getFireDepartmentMetrics().thrownAway());
 
     // Check published segments & metadata
     SegmentDescriptor desc3 = SD(task2, "2011/P1D", 1);
@@ -1709,8 +1548,8 @@ public class KafkaIndexTaskTest
 
     // Check metrics
     Assert.assertEquals(4, task.getFireDepartmentMetrics().processed());
-    Assert.assertEquals(2, task.getFireDepartmentMetrics().unparseable());
-    Assert.assertEquals(0, task.getFireDepartmentMetrics().thrownAway());
+    Assert.assertEquals(1, task.getFireDepartmentMetrics().unparseable());
+    Assert.assertEquals(1, task.getFireDepartmentMetrics().thrownAway());
 
     // Check published metadata
     SegmentDescriptor desc1 = SD(task, "2009/P1D", 0);
@@ -1949,10 +1788,7 @@ public class KafkaIndexTaskTest
         handoffConditionTimeout,
         resetOffsetAutomatically,
         null,
-        intermediateHandoffPeriod,
-        logParseExceptions,
-        maxParseExceptions,
-        maxSavedParseExceptions
+        intermediateHandoffPeriod
     );
     final Map<String, Object> context = isIncrementalHandoffSupported
                                         ? ImmutableMap.of(KafkaSupervisor.IS_INCREMENTAL_HANDOFF_SUPPORTED, true)
@@ -1991,10 +1827,7 @@ public class KafkaIndexTaskTest
         handoffConditionTimeout,
         resetOffsetAutomatically,
         null,
-        null,
-        logParseExceptions,
-        maxParseExceptions,
-        maxSavedParseExceptions
+        null
     );
     if (isIncrementalHandoffSupported) {
       context.put(KafkaSupervisor.IS_INCREMENTAL_HANDOFF_SUPPORTED, true);
@@ -2307,18 +2140,11 @@ public class KafkaIndexTaskTest
     return results.isEmpty() ? 0 : results.get(0).getValue().getLongMetric("rows");
   }
 
-  private static byte[] JB(String timestamp, String dim1, String dim2, String dimLong, String dimFloat, String met1)
+  private static byte[] JB(String timestamp, String dim1, String dim2, double met1)
   {
     try {
       return new ObjectMapper().writeValueAsBytes(
-          ImmutableMap.builder()
-                      .put("timestamp", timestamp)
-                      .put("dim1", dim1)
-                      .put("dim2", dim2)
-                      .put("dimLong", dimLong)
-                      .put("dimFloat", dimFloat)
-                      .put("met1", met1)
-                      .build()
+          ImmutableMap.of("timestamp", timestamp, "dim1", dim1, "dim2", dim2, "met1", met1)
       );
     }
     catch (Exception e) {

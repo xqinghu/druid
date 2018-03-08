@@ -212,8 +212,6 @@ public class HadoopConverterJobTest
                 null,
                 false,
                 false,
-                null,
-                null,
                 null
             )
         )
@@ -253,7 +251,7 @@ public class HadoopConverterJobTest
             new SQLMetadataStorageUpdaterJobHandler(connector)
         )
     );
-    Assert.assertTrue(JobHelper.runJobs(jobs, hadoopDruidIndexerConfig));
+    JobHelper.runJobs(jobs, hadoopDruidIndexerConfig);
   }
 
   private List<DataSegment> getDataSegments(

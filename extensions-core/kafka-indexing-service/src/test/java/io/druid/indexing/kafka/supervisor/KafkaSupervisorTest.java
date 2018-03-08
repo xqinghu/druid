@@ -201,9 +201,6 @@ public class KafkaSupervisorTest extends EasyMockSupport
         TEST_HTTP_TIMEOUT,
         TEST_SHUTDOWN_TIMEOUT,
         null,
-        null,
-        null,
-        null,
         null
     );
 

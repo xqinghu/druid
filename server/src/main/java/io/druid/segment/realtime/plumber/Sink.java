@@ -34,7 +34,6 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.column.ColumnCapabilitiesImpl;
 import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.segment.incremental.IncrementalIndexAddResult;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.indexing.DataSchema;
@@ -54,7 +53,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Sink implements Iterable<FireHydrant>
 {
-  private static final IncrementalIndexAddResult ADD_FAILED = new IncrementalIndexAddResult(-1, null);
+  private static final int ADD_FAILED = -1;
 
   private final Object hydrantLock = new Object();
   private final Interval interval;
@@ -140,7 +139,7 @@ public class Sink implements Iterable<FireHydrant>
     return currHydrant;
   }
 
-  public IncrementalIndexAddResult add(InputRow row, boolean skipMaxRowsInMemoryCheck) throws IndexSizeExceededException
+  public int add(InputRow row, boolean skipMaxRowsInMemoryCheck) throws IndexSizeExceededException
   {
     if (currHydrant == null) {
       throw new IAE("No currHydrant but given row[%s]", row);

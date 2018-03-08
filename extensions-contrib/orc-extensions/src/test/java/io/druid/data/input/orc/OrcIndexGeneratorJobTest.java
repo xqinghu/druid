@@ -234,8 +234,6 @@ public class OrcIndexGeneratorJobTest
                 null,
                 false,
                 false,
-                null,
-                null,
                 null
             )
         )
@@ -254,7 +252,7 @@ public class OrcIndexGeneratorJobTest
 
   private void verifyJob(IndexGeneratorJob job) throws IOException
   {
-    Assert.assertTrue(JobHelper.runJobs(ImmutableList.<Jobby>of(job), config));
+    JobHelper.runJobs(ImmutableList.<Jobby>of(job), config);
 
     int segmentNum = 0;
     for (DateTime currTime = interval.getStart(); currTime.isBefore(interval.getEnd()); currTime = currTime.plusDays(1)) {

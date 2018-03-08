@@ -255,7 +255,7 @@ public class FilteredAggregatorBenchmark
   {
     incIndexFilteredAgg = makeIncIndex(filteredMetrics);
     for (InputRow row : inputRows) {
-      int rv = incIndexFilteredAgg.add(row).getRowCount();
+      int rv = incIndexFilteredAgg.add(row);
       blackhole.consume(rv);
     }
   }
